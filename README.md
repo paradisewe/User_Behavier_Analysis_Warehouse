@@ -197,8 +197,7 @@ verify_compare.py   53 项 PASS，diff 全为 0.000000          退出码 0
 | 脚本「跑完了」但没有输出文件 | 空脚本 `exit 0`；`run_sql.py` 逐查询吞异常；`grep -v` 无匹配返回 1 叠加 `pipefail` | 验收看**副作用**（文件 mtime / 行数），不看退出码；`q()` 加 `\|\| true` 并用 `-s` 断言非空 |
 | `verify_compare.py` 全部 `Hive=None` | 阶段 3 六条导出表名复制粘贴全写成 `behavior_dist` | 表名逐条核对；导出助手加空文件断言 |
 
-完整排查过程见 [`docs/learning/02`](docs/learning/02-关卡1-ODS贴源层.md)（分区爆炸）与
-[`docs/learning/06`](docs/learning/06-关卡6-对账脚本.md)（对账与静默失败）。
+> 每个故障都留下了完整的排查记录（报错原文、验证命令、根因推理），整理在项目本地的学习笔记中，未随仓库发布。
 
 ---
 
@@ -218,24 +217,13 @@ User_Behavier_Analysis_Warehouse/
 │   └── verify_compare.py        # 跨管道对账（53 项）
 ├── hive-data/                   # 运行时 ORC 数据（gitignore）
 │   └── ods.db/ dwd.db/ dws.db/ ads.db/
-├── （命名卷 hive-metastore）     # Derby 元数据库，挂载到容器 /opt/hive/metastore_db
-├── verify_out/                  # 对账导出的 TSV（gitignore）
-└── docs/learning/               # 学习笔记：关卡复盘 + 知识点合集
+├──（命名卷 hive-metastore）     # Derby 元数据库，挂载到容器 /opt/hive/metastore_db
+└── verify_out/                  # 对账导出的 TSV（gitignore）
 ```
 
 ---
 
-## 10. 学习文档
-
-| 文档 | 内容 |
-|---|---|
-| [`00-学习路线图`](docs/learning/00-学习路线图.md) | 8 个关卡地图、协作方式、三条纪律 |
-| [`01`](docs/learning/01-关卡0-环境与工程化基础.md) / [`02`](docs/learning/02-关卡1-ODS贴源层.md) / [`03`](docs/learning/03-关卡2-DWD明细层.md) / [`04`](docs/learning/04-关卡3-DWS汇总层.md) / [`05`](docs/learning/05-关卡4-ADS应用层.md) / [`06`](docs/learning/06-关卡6-对账脚本.md) | 逐关的原理与踩坑复盘 |
-| [`07-知识点合集`](docs/learning/07-知识点合集.md) | **技术原理 + 问题解法全书**：数仓方法论 / Hive 机制 / 容器化 / 对账 / 排障，可当 0→1 手册读 |
-
----
-
-## 11. 二期 Roadmap · AI 问数
+## 10. 二期 Roadmap · AI 问数
 
 借鉴 [shopkeeper-agent](https://github.com/didilili/shopkeeper-agent) 的智能问数链路：
 
@@ -251,7 +239,7 @@ User_Behavier_Analysis_Warehouse/
 
 ---
 
-## 12. 数据来源与致谢
+## 11. 数据来源与致谢
 
 - 数据：阿里天池 · 淘宝用户行为数据集（公开数据，仅用于学习）
 - 方法论蓝本：[Olist 电商数仓](../../DataWarehouse)（四层 48 表设计稿）
