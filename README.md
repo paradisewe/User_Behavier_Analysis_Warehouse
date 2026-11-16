@@ -12,6 +12,10 @@
 数据来自阿里天池「淘宝用户行为数据集」：约 **1 亿行**用户行为流水，字段为
 `user_id, item_id, category_id, behavior_type(pv/fav/cart/buy), timestamp`，核心观测窗口 **2017-11-25 ~ 12-03**。
 
+> 🔗 **上游分析项目**：[paradisewe/user-behavior-analysis](https://github.com/paradisewe/user-behavior-analysis)
+> 本项目是它的**数仓化 / 工程化版本**——同一份数据、同一套指标，从「分析脚本」升级为「可复现的四层数仓」；
+> 53 项对账基准全部来自上游项目的 DuckDB 全量管道。
+
 | 指标 | 数值 |
 |---|---|
 | 原始文件 | 3.42 GB，100,150,807 行，无表头 |
@@ -239,8 +243,26 @@ User_Behavier_Analysis_Warehouse/
 
 ---
 
-## 11. 数据来源与致谢
+## 11. 关联项目与数据来源
+
+### 关联项目
+
+| 项目 | 关系 |
+|---|---|
+| [user-behavior-analysis](https://github.com/paradisewe/user-behavior-analysis) | **上游分析项目**：Python 抽样管道（498 万行）+ DuckDB 全量 SQL + Streamlit 看板 + Dify 问数助手。本项目把它的结论工程化为四层数仓，并用它的 DuckDB 结果作为对账基准 |
+| [shopkeeper-agent](https://github.com/didilili/shopkeeper-agent) | 二期 AI 问数参考：LangGraph + 元数据知识库 + NL2SQL 校验执行 |
+
+**两个仓库的分工**：
+
+```
+user-behavior-analysis              User_Behavier_Analysis_Warehouse
+（分析探索：数据说了什么）    ──→    （工程实现：怎么稳定、可复现地算出来）
+  Python 抽样 / DuckDB 全量              Hive 四层 / 一键建仓 / 53 项对账
+  Streamlit 看板 / Dify 问数              ADS 结果表 / 元数据地基（二期 Agent 用）
+```
+
+### 数据与致谢
 
 - 数据：阿里天池 · 淘宝用户行为数据集（公开数据，仅用于学习）
-- 方法论蓝本：[Olist 电商数仓](../../DataWarehouse)（四层 48 表设计稿）
+- 方法论蓝本：本地 Olist 电商数仓项目（四层 48 表设计稿，未公开）
 - 二期参考：[shopkeeper-agent](https://github.com/didilili/shopkeeper-agent)
