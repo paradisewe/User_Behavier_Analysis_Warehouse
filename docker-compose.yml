@@ -1,0 +1,17 @@
+services:
+  hive4:
+    image: apache/hive:4.0.0
+    container_name: hive4
+    ports:
+      - "10000:10000"
+      - "10002:10002"
+    environment:
+      SERVICE_NAME: hiveserver2
+    volumes:
+      - ./hive-data:/opt/hive/data/warehouse
+      - ./sql:/opt/sql
+      - hive-metastore:/opt/hive/metastore_db      # ← 绑定挂载改命名卷
+
+volumes:
+  hive-metastore:
+    name: hive-metastore                            # ← 固定卷名，方便手工初始化
