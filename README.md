@@ -1,7 +1,7 @@
 # 淘宝用户行为数仓（1 亿行 · Docker 单容器）
 
-> 把 3.42 GB 原始行为日志建成 **ODS → DWD → DWS → ADS** 四层数仓，8 张结果表回答 8 个业务问题，
-> 并与一条**独立的 DuckDB 管道**交叉对账：**53 项指标全部 `diff = 0`**。
+> 把 3.42 GB 原始行为日志建成 **ODS → DWD → DWS → ADS** 四层数仓，13 张结果表回答 13 个业务问题，
+> 并与一条**独立的 DuckDB 管道**交叉对账：A 组 53 项指标全部 `diff = 0`，B 组 55 项与上游抽样基准做结构对照——**108 项全 PASS**。
 
 技术栈：`Docker` · `Apache Hive 4.0.0（单容器 / Tez 本地模式）` · `Hive SQL` · `Derby（命名卷持久化）` · `Bash` · `Python`
 
@@ -14,7 +14,7 @@
 
 > 🔗 **上游分析项目**：[paradisewe/user-behavior-analysis](https://github.com/paradisewe/user-behavior-analysis)
 > 本项目是它的**数仓化 / 工程化版本**——同一份数据、同一套指标，从「分析脚本」升级为「可复现的四层数仓」；
-> 53 项对账基准全部来自上游项目的 DuckDB 全量管道。
+> 对账 A 组（53 项）基准来自上游项目的 DuckDB 全量管道；B 组（55 项）用它的 5% 抽样结论做结构对照。
 
 | 指标 | 数值 |
 |---|---|
@@ -44,8 +44,14 @@
 | 06 | 购买 TOP 类目 | **1464116**（34,589 次购买 / 29,953 位买家）领跑 |
 | 07 | 复购率 | 购买用户 672,404，其中 **443,858 人复购（66.01%）** |
 | 08 | 用户行为深度分层 | 已购买 68.06% ｜ 加购未购买 21.04% ｜ 仅浏览 6.03% ｜ 仅收藏 4.87% |
+| 09 | RFM 用户分层 | 重要价值 **19.39%** ｜ 重要保持 14.64% ｜ 一般挽留 12.08% ｜ 重要挽留 10.56% ｜ 重要发展 6.45% ｜ 一般价值 4.93% ｜ 未购买 31.94% |
+| 10 | 次日留存（逐日） | 基线 77.7%~79.6%；**12-01 跳升至 98.25%**、12-02 为 97.98%（复现上游「12-02 异常」结论） |
+| 11 | 次日留存（活跃分层） | 6~9 天层 **88.05%** ｜ 4~5 天层 59.22% ｜ 2~3 天层 29.59% ｜ 1 天层 0% |
+| 12 | 用户-商品路径 | 仅浏览 93.40% ｜ 先加购 3.61%（购买率 **9.50%**）｜ 先收藏 1.62%（7.98%）｜ 直接购买 1.37% |
+| 13 | 类目关联规则 | Top100（按 lift）；有效购物篮 **421,004**，为抽样 20,970 的 **20.08 倍**（抽样代表性验证） |
 
-> 注：01/02/03/06/07/08 与 DuckDB 全量管道**逐指标精确相等**；04/05 因时区口径不同（北京时间 vs UTC）只对趋势形状。
+> 注：01/02/03/06/07/08 与 DuckDB 全量管道**逐指标精确相等**；04/05 因时区口径不同（北京时间 vs UTC）只对趋势形状；
+> 09~13 与上游 5% 抽样基准比结构（占比/比率/均值），全部落在容差内。
 
 ---
 
@@ -61,13 +67,13 @@ ODS 贴源层（2 张表 · 原样镜像，不清洗）
 DWD 明细层（1 张事实表 · 一行一次行为）
         │  公共指标聚合（指标只算一次）
         ▼
-DWS 汇总层（5 张：平台日粒度 / 时段 / 用户 / 类目 / 用户×商品首行为）
+DWS 汇总层（7 张：平台日粒度 / 时段 / 用户 / 类目 / 用户×商品首行为 / 人-日对 / 用户×类目购买）
         │  面向业务问题的最终加工（只读 DWS，禁止跨层）
         ▼
-ADS 应用层（8 张：一表一问题）
+ADS 应用层（13 张：一表一问题）
         │
-        ├─ verify.sh（11 项：结构 + 内部一致性）
-        └─ verify_compare.py（53 项：与 DuckDB 基线跨管道对账）
+        ├─ verify.sh（17 项：结构 + 内部一致性）
+        └─ verify_compare.py（108 项：A 组精确对账 + B 组结构对照）
 ```
 
 **单容器 Hive 的运行模型**：HiveServer2 + Tez 本地执行 + 内嵌 Derby 元数据 + 挂载目录做存储，
@@ -75,7 +81,7 @@ ADS 应用层（8 张：一表一问题）
 
 ---
 
-## 4. 表清单（共 16 张）
+## 4. 表清单（共 23 张）
 
 ### ODS（2 张）
 
@@ -90,7 +96,7 @@ ADS 应用层（8 张：一表一问题）
 |---|---|---|
 | `dwd.dwd_traffic_user_behavior_di` | 清洗后明细（含北京时间派生列：time/date/hour） | `dt` = **业务日期**（北京时间） |
 
-### DWS（5 张）
+### DWS（7 张）
 
 | 表 | 粒度 | 服务的 ADS |
 |---|---|---|
@@ -98,13 +104,17 @@ ADS 应用层（8 张：一表一问题）
 | `dws_traffic_hour_df` | 小时 × 行为 | 05 |
 | `dws_traffic_user_summary_df` | 用户（全期） | 02 / 07 / 08 |
 | `dws_traffic_category_df` | 类目（全期） | 06 |
-| `dws_traffic_user_item_df` | 用户 × 商品（首次行为时间戳） | 03 |
+| `dws_traffic_user_item_df` | 用户 × 商品（首次行为时间戳） | 03 / 12 |
+| `dws_traffic_user_active_day_df` | 用户 × 活跃日（人-日对） | 10 / 11 |
+| `dws_traffic_user_category_buy_df` | 用户 × 类目 × 日（购物篮原子） | 13 |
 
-### ADS（8 张）
+### ADS（13 张）
 
 `ads_traffic_behavior_dist_df` · `ads_traffic_user_funnel_df` · `ads_traffic_item_funnel_df` ·
 `ads_traffic_daily_trend_df` · `ads_traffic_hourly_activity_df` · `ads_traffic_category_top_df` ·
-`ads_traffic_repurchase_df` · `ads_traffic_segmentation_df`
+`ads_traffic_repurchase_df` · `ads_traffic_segmentation_df` ·
+`ads_traffic_rfm_df` · `ads_traffic_retention_daily_df` · `ads_traffic_retention_layer_df` ·
+`ads_traffic_path_summary_df` · `ads_traffic_association_rules_df`
 
 ---
 
@@ -144,7 +154,7 @@ docker compose up -d
 # 2) 一键建仓（校验数据 → 探活 → ODS→DWD→DWS→ADS → 烟测）
 bash scripts/build_warehouse.sh
 
-# 3) 对账（结构/一致性 11 项 + 跨管道 53 项）
+# 3) 对账（结构/一致性 17 项 + 跨管道 108 项）
 bash scripts/verify.sh
 python scripts/verify_compare.py
 ```
@@ -172,11 +182,11 @@ BASELINE_DIR=/path/to/results python scripts/verify_compare.py
 ## 7. 对账结果
 
 ```
-verify.sh           11 项 PASS（结构 4 + 行数/一致性 7）   退出码 0
-verify_compare.py   53 项 PASS，diff 全为 0.000000          退出码 0
+verify.sh           17 项 PASS（数据质量 1 + 结构 4 + 一致性 12）   退出码 0
+verify_compare.py   108 项 PASS（A 组 53 项 diff=0；B 组 55 项在容差内）  退出码 0
 ```
 
-代表性指标（基线 = DuckDB 全量管道，Hive = 本数仓）：
+代表性指标（A 组：基线 = DuckDB 全量管道，Hive = 本数仓）：
 
 | 指标 | 基线 | Hive | diff |
 |---|---|---|---|
@@ -185,6 +195,15 @@ verify_compare.py   53 项 PASS，diff 全为 0.000000          退出码 0
 | 加购→购买 | 6.06% | 6.06% | 0 |
 | 复购率 | 66.01% | 66.01% | 0 |
 | 已购买用户占比 | 68.06% | 68.06% | 0 |
+
+B 组（基线 = 上游 5% 抽样的分析结论，只比结构）：
+
+| 指标 | 抽样基线 | 全量复算 | diff |
+|---|---|---|---|
+| RFM 重要价值占比 | 19.39% | 19.39% | 0 |
+| 次日留存 6~9 天层 | 88.02% | 88.05% | 0.0003 |
+| 路径：先加购占比 / 购买率 | 3.60% / 9.44% | 3.61% / 9.50% | ≤0.0006 |
+| 有效购物篮（全量/抽样） | 20,970 | 421,004（20.08 倍） | — |
 
 **核心对账数字**：`100,150,807（原始）− 3,000（脏时间戳）− 49（重复）= 100,147,758（DWD）`。
 
@@ -200,6 +219,7 @@ verify_compare.py   53 项 PASS，diff 全为 0.000000          退出码 0
 | `SHOW PARTITIONS` 正常但查询 0 行 | Hive `INSERT` **按位置**而非按列名映射，DDL 列序与 SELECT 列序错位 | SELECT 列序严格对齐 DDL；写完先数一遍列数 |
 | 脚本「跑完了」但没有输出文件 | 空脚本 `exit 0`；`run_sql.py` 逐查询吞异常；`grep -v` 无匹配返回 1 叠加 `pipefail` | 验收看**副作用**（文件 mtime / 行数），不看退出码；`q()` 加 `\|\| true` 并用 `-s` 断言非空 |
 | `verify_compare.py` 全部 `Hive=None` | 阶段 3 六条导出表名复制粘贴全写成 `behavior_dist` | 表名逐条核对；导出助手加空文件断言 |
+| `verify.sh` 报「购物篮数不一致」，差 9,075 | 校验口径写成 `count(*)`（行数，含日期维度），生产是 `count(DISTINCT category_id)`（类目数） | 校验脚本必须复用与生产**完全相同**的集合定义；**假红灯和假绿灯同样有害** |
 
 > 每个故障都留下了完整的排查记录（报错原文、验证命令、根因推理），整理在项目本地的学习笔记中，未随仓库发布。
 
@@ -217,8 +237,8 @@ User_Behavier_Analysis_Warehouse/
 │   └── ADS/ads_ddl.hql, ads_etl.hql
 ├── scripts/
 │   ├── build_warehouse.sh       # 一键建仓（数据校验 → 探活 → 四层 → 烟测）
-│   ├── verify.sh                # 结构 + 内部一致性（11 项）
-│   └── verify_compare.py        # 跨管道对账（53 项）
+│   ├── verify.sh                # 结构 + 内部一致性（17 项）
+│   └── verify_compare.py        # 跨管道对账（108 项）
 ├── hive-data/                   # 运行时 ORC 数据（gitignore）
 │   └── ods.db/ dwd.db/ dws.db/ ads.db/
 ├──（命名卷 hive-metastore）     # Derby 元数据库，挂载到容器 /opt/hive/metastore_db
@@ -257,7 +277,7 @@ User_Behavier_Analysis_Warehouse/
 ```
 user-behavior-analysis              User_Behavier_Analysis_Warehouse
 （分析探索：数据说了什么）    ──→    （工程实现：怎么稳定、可复现地算出来）
-  Python 抽样 / DuckDB 全量              Hive 四层 / 一键建仓 / 53 项对账
+  Python 抽样 / DuckDB 全量              Hive 四层 / 一键建仓 / 108 项对账
   Streamlit 看板 / Dify 问数              ADS 结果表 / 元数据地基（二期 Agent 用）
 ```
 

@@ -78,3 +78,28 @@ CREATE TABLE IF NOT EXISTS dws.dws_traffic_user_item_df(
 )
 COMMENT 'DWS-用户×商品粒度全量汇总'
 STORED AS ORC;
+
+
+--06 用户×活跃日
+CREATE TABLE IF NOT EXISTS dws.dws_traffic_user_active_day_df(
+
+    user_id	    BIGINT	    COMMENT '用户ID',
+    stat_date	STRING	    COMMENT '活跃日期 yyyy-MM-dd（北京时间）',
+    etl_time	TIMESTAMP	COMMENT 'ETL处理时间'
+)
+COMMENT 'DWS-用户×活跃日全量汇总'
+STORED AS ORC;
+
+
+
+
+--07 用户×购买类目（粒度：用户×类目×日）
+CREATE TABLE IF NOT EXISTS dws.dws_traffic_user_category_buy_df(
+    user_id      BIGINT    COMMENT '用户ID',
+    category_id  BIGINT    COMMENT '商品类目ID',
+    stat_date    STRING    COMMENT '购买日期 yyyy-MM-dd（北京时间）',
+    buy_cnt      BIGINT    COMMENT '该用户在该类目当日的购买次数',
+    etl_time     TIMESTAMP COMMENT 'ETL处理时间'
+)
+COMMENT 'DWS-用户×购买类目×日汇总（关联规则购物篮原料）'
+STORED AS ORC;

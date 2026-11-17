@@ -76,3 +76,64 @@ CREATE TABLE IF NOT EXISTS ads.ads_traffic_segmentation_df (
 )
 COMMENT 'ADS-08-用户行为深度分层'
 STORED AS ORC;
+
+-- 09 用户RFM分层（用户级，一支一行）
+CREATE TABLE IF NOT EXISTS ads.ads_traffic_rfm_df (
+    user_id       BIGINT COMMENT '用户ID',
+    recency_days  INT    COMMENT 'R：窗口末日−最近购买日天数；未购买为NULL',
+    frequency     BIGINT COMMENT 'F：窗口内购买次数；未购买为0',
+    r_score       INT    COMMENT 'R得分1~4（0天=4/1天=3/2~3天=2/其余=1）',
+    f_score       INT    COMMENT 'F得分1~4（买家按购买次数四分位）',
+    segment       STRING COMMENT '分层：重要价值/重要发展/重要保持/重要挽留/一般价值/一般挽留/未购买用户'
+)
+COMMENT 'ADS-09-用户RFM分层（RF两维，无金额维度）'
+STORED AS ORC;
+
+-- 10 次日留存（逐日）
+CREATE TABLE IF NOT EXISTS ads.ads_traffic_retention_daily_df (
+    stat_date       STRING COMMENT '同期群日期 yyyy-MM-dd（北京时间）',
+    cohort_users    BIGINT COMMENT '当日活跃用户数（分母）',
+    retained_users  BIGINT COMMENT '次日仍活跃用户数（分子）',
+    next_day_rate   DOUBLE COMMENT '次日留存率（4位小数）'
+)
+COMMENT 'ADS-10-逐日次日留存'
+STORED AS ORC;
+
+-- 11 次日留存（按活跃天数分层）
+CREATE TABLE IF NOT EXISTS ads.ads_traffic_retention_layer_df (
+    layer             STRING COMMENT '活跃分层：1天/2~3天/4~5天/6~9天',
+    users             BIGINT COMMENT '该层用户数',
+    eligible_pairs    BIGINT COMMENT '可留存人-日对数（分母）',
+    retained_pairs    BIGINT COMMENT '次日仍活跃人-日对数（分子）',
+    next_day_rate     DOUBLE COMMENT '层内次日留存率（4位小数）',
+    avg_eligible_days DOUBLE COMMENT '人均可留存的活跃天数'
+)
+COMMENT 'ADS-11-分层次日留存（人-日对口径）'
+STORED AS ORC;
+
+-- 12 用户路径汇总
+CREATE TABLE IF NOT EXISTS ads.ads_traffic_path_summary_df (
+    path             STRING COMMENT '路径：仅浏览/直接购买/先加购/先收藏',
+    pairs            BIGINT COMMENT '该路径的用户-商品对数',
+    purchased        BIGINT COMMENT '其中最终购买的对数',
+    share_of_browsed DOUBLE COMMENT '占全部有浏览对数的比例（4位小数）',
+    purchase_rate    DOUBLE COMMENT '该路径购买转化率（4位小数）'
+)
+COMMENT 'ADS-12-用户-商品路径汇总（按首次行为时序判定）'
+STORED AS ORC;
+
+-- 13 类目关联规则
+CREATE TABLE IF NOT EXISTS ads.ads_traffic_association_rules_df (
+    rn                  INT    COMMENT '按 lift 降序排名',
+    antecedent_category BIGINT COMMENT '前项类目ID',
+    consequent_category BIGINT COMMENT '后项类目ID',
+    support             DOUBLE COMMENT '支持度：同时含两类的篮子/总篮子',
+    confidence          DOUBLE COMMENT '置信度：含前项中同时含后项的比例',
+    lift                DOUBLE COMMENT '提升度：置信度/后项基准概率',
+    pair_baskets        BIGINT COMMENT '同时含两类的篮子数',
+    antecedent_baskets  BIGINT COMMENT '含前项的篮子数',
+    consequent_baskets  BIGINT COMMENT '含后项的篮子数',
+    total_baskets       BIGINT COMMENT '有效购物篮总数（购买≥2类目的用户数）'
+)
+COMMENT 'ADS-13-类目关联规则Top100（2-项集精确计数）'
+STORED AS ORC;

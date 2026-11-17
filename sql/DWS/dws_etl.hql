@@ -77,3 +77,23 @@ FROM (
     FROM dwd.dwd_traffic_user_behavior_di
     GROUP BY user_id, item_id
 ) t;
+
+-- 表6 人-日对（留存分析的基础事实）
+INSERT OVERWRITE TABLE dws.dws_traffic_user_active_day_df
+SELECT 
+    user_id, 
+    behavior_date, 
+    current_timestamp()
+FROM dwd.dwd_traffic_user_behavior_di
+GROUP BY user_id, behavior_date;
+
+-- 表7 购物篮原子（用户×购买类目，保留购买次数）
+INSERT OVERWRITE TABLE dws.dws_traffic_user_category_buy_df
+SELECT user_id,
+       category_id,
+       behavior_date          AS stat_date,
+       count(*)               AS buy_cnt,
+       current_timestamp()
+FROM dwd.dwd_traffic_user_behavior_di
+WHERE behavior_type = 'buy'
+GROUP BY user_id, category_id, behavior_date;
