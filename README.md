@@ -234,7 +234,12 @@ B 组（基线 = 上游 5% 抽样的分析结论，只比结构）：
 ```
 User_Behavier_Analysis_Warehouse/
 ├── docker-compose.yml           # Hive 4.0.0 + PostgreSQL 16（pgvector）双容器
-├── docker/pg/schema.sql         # 服务层镜像 19 张表（单事务 DDL）
+├── docker/pg/
+│   ├── schema.sql               # 服务层镜像 19 张表（单事务 DDL）
+│   └── meta_schema.sql          # 元数据四表（meta schema）
+├── config/
+│   ├── tables.json              # 表契约：粒度 / 下游用途
+│   └── metrics.json             # 指标口径：定义 / 公式 / 窗口 / 坑
 ├── sql/
 │   ├── ODS/ods_ddl.hql, ods_etl.hql
 │   ├── DWD/dwd_ddl.hql, dwd_etl.hql
@@ -245,7 +250,10 @@ User_Behavier_Analysis_Warehouse/
 │   ├── verify.sh                # 结构 + 内部一致性（17 项）
 │   ├── verify_compare.py        # 跨管道对账（108 项）
 │   ├── export_to_pg.sh          # Hive → TSV → PG（事务 COPY + ANALYZE）
-│   └── verify_export.py         # 镜像验收（行数三方 + 列指纹 + ANALYZE 探针）
+│   ├── verify_export.py         # 镜像验收（行数三方 + 列指纹 + ANALYZE 探针）
+│   ├── init_roles_pg.sh         # 只读角色 dw_ro（独立口令 + 最小权限）
+│   ├── build_meta.py            # 元数据构建（DDL 注释 + PG 结构 + 口径配置）
+│   └── verify_meta.py           # 元数据验收（列级对齐 + 指标自洽）
 ├── hive-data/                   # 运行时 ORC 数据（gitignore）
 │   └── ods.db/ dwd.db/ dws.db/ ads.db/
 ├── export/                      # 导出 TSV 中转（gitignore）
@@ -263,7 +271,7 @@ User_Behavier_Analysis_Warehouse/
 | 阶段 | 内容 |
 |---|---|
 | 服务层 | 6 DWS + 13 ADS 导出 **PostgreSQL 16 镜像**（19 张 / 1,083 万行），Agent 毫秒级查询 |
-| 元数据知识库 | PostgreSQL（结构化元数据；`pgvector` 可替代 Qdrant，A3 再定）+ ES（字段取值检索） |
+| 元数据知识库 | ✅ A2 已落地 `meta.*` 四表（19 表 / 92 列 / 33 指标 / 86 字段映射）；向量检索用 `pgvector`（A3 再定是否保留 ES 做取值检索） |
 | 编排 | **LangGraph** 多阶段：抽关键词 → 多路召回 → 上下文补全 → SQL 生成 → EXPLAIN 校验 → 回改 → 执行 → 流式返回 |
 | 增量 | 融合 Dify 版「问项目」RAG 分支；Dify 版定位为 MVP，叙事为「原型 → 工程化」 |
 | **评测集** | 50 条问题（含多表 JOIN / 口径歧义 / 日期陷阱），指标 = 准确率 / 口径命中率 / 轮次 / 延迟；**失败案例写进 README** |

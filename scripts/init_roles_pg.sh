@@ -47,6 +47,18 @@ ALTER ROLE dw_ro SET statement_timeout = '30s';
 SQL
 echo "[OK] 授权完成：CONNECT + USAGE + SELECT（现有表与未来表）"
 
+# ---------- meta 元数据（A2 建了才授权；B 阶段的检索走同一只读账号） ----------
+if [ "$(psql_admin -c "SELECT 1 FROM information_schema.schemata WHERE schema_name='meta'")" = "1" ]; then
+    docker exec -i -e PGPASSWORD="$PG_PASSWORD" pg16 psql -U dw -d dw -q -v ON_ERROR_STOP=1 <<'SQL'
+GRANT USAGE ON SCHEMA meta TO dw_ro;
+GRANT SELECT ON ALL TABLES IN SCHEMA meta TO dw_ro;
+ALTER DEFAULT PRIVILEGES IN SCHEMA meta GRANT SELECT ON TABLES TO dw_ro;
+SQL
+    echo "[OK] meta schema 已授权（USAGE + SELECT）"
+else
+    echo "[SKIP] meta schema 未建（A2 未跑）：跳过元数据授权"
+fi
+
 # ---------- 验收：走 TCP 用只读口令实连 ----------
 probe=$(docker exec -e PGPASSWORD="$PG_RO_PASSWORD" pg16 psql -h 127.0.0.1 -U dw_ro -d dw -t -A -c "
     SELECT current_user || '|'

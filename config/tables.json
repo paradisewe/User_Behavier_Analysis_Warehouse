@@ -1,0 +1,121 @@
+{
+  "_excluded_sources": ["dws.dws_traffic_user_item_df"],
+  "_note": "表级契约：grain=粒度，served_for=服务哪类问题；table_comment 由 Hive DDL 自动抽取，不在这里维护",
+  "dw_dws_traffic_platform_1d_df": {
+    "layer": "DWS",
+    "source": "dws.dws_traffic_platform_1d_df",
+    "grain": "日（stat_date）",
+    "served_for": "DAU/UV、日购买次数与购买用户数（ADS-04 的原料）；日粒度行为总量下钻"
+  },
+  "dw_dws_traffic_hour_df": {
+    "layer": "DWS",
+    "source": "dws.dws_traffic_hour_df",
+    "grain": "小时 × 行为类型",
+    "served_for": "24 小时行为分布（ADS-05 的原料）；时段活跃下钻"
+  },
+  "dw_dws_traffic_user_summary_df": {
+    "layer": "DWS",
+    "source": "dws.dws_traffic_user_summary_df",
+    "grain": "用户（一人一行，全期）",
+    "served_for": "用户画像、活跃天数、购买次数；复购/分层类问题的用户级下钻"
+  },
+  "dw_dws_traffic_category_df": {
+    "layer": "DWS",
+    "source": "dws.dws_traffic_category_df",
+    "grain": "类目（一类一行，全期）",
+    "served_for": "类目全景购买次数/买家数（不止 Top10）；ADS-06 的原料"
+  },
+  "dw_dws_traffic_user_active_day_df": {
+    "layer": "DWS",
+    "source": "dws.dws_traffic_user_active_day_df",
+    "grain": "用户 × 活跃日（人-日对）",
+    "served_for": "留存/回访类问题的分母与下钻；某日活跃用户集合"
+  },
+  "dw_dws_traffic_user_category_buy_df": {
+    "layer": "DWS",
+    "source": "dws.dws_traffic_user_category_buy_df",
+    "grain": "用户 × 类目 × 日",
+    "served_for": "关联规则的购物篮原料（用户买了哪些类目）；跨类目购买下钻"
+  },
+  "dw_ads_traffic_behavior_dist_df": {
+    "layer": "ADS",
+    "source": "ads.ads_traffic_behavior_dist_df",
+    "grain": "行为类型（4 行快照，全期）",
+    "served_for": "「浏览/收藏/加购/购买各多少次、各占多少」"
+  },
+  "dw_ads_traffic_user_funnel_df": {
+    "layer": "ADS",
+    "source": "ads.ads_traffic_user_funnel_df",
+    "grain": "漏斗层（4 行，全期）",
+    "served_for": "用户级行为漏斗与相对浏览用户的转化率（不要求先后）"
+  },
+  "dw_ads_traffic_item_funnel_df": {
+    "layer": "ADS",
+    "source": "ads.ads_traffic_item_funnel_df",
+    "grain": "转化路径（4 行，全期）",
+    "served_for": "用户-商品级顺序漏斗：先加购/先收藏再购买的转化率"
+  },
+  "dw_ads_traffic_daily_trend_df": {
+    "layer": "ADS",
+    "source": "ads.ads_traffic_daily_trend_df",
+    "grain": "日（stat_date，54 个活跃日）",
+    "served_for": "每日 DAU / 购买次数 / 购买用户数趋势"
+  },
+  "dw_ads_traffic_hourly_activity_df": {
+    "layer": "ADS",
+    "source": "ads.ads_traffic_hourly_activity_df",
+    "grain": "小时 × 行为类型（96 行）",
+    "served_for": "哪个时段什么行为最活跃、占比多少"
+  },
+  "dw_ads_traffic_category_top_df": {
+    "layer": "ADS",
+    "source": "ads.ads_traffic_category_top_df",
+    "grain": "类目排名（Top10，全期）",
+    "served_for": "购买量 Top10 类目及其购买占比"
+  },
+  "dw_ads_traffic_repurchase_df": {
+    "layer": "ADS",
+    "source": "ads.ads_traffic_repurchase_df",
+    "grain": "全期单行快照",
+    "served_for": "复购率（≥2 次购买用户占比）",
+    "synthetic_columns": {
+      "snapshot_id": "快照标识（镜像合成列，恒为 1，仅用于满足单行表主键约束）"
+    }
+  },
+  "dw_ads_traffic_segmentation_df": {
+    "layer": "ADS",
+    "source": "ads.ads_traffic_segmentation_df",
+    "grain": "用户分层（4 行，全期）",
+    "served_for": "已购买/加购未购买/仅收藏/仅浏览 四层人数与占比"
+  },
+  "dw_ads_traffic_rfm_df": {
+    "layer": "ADS",
+    "source": "ads.ads_traffic_rfm_df",
+    "grain": "用户（一人一行，核心窗口）",
+    "served_for": "RFM 分层名单与 R/F 值；「哪些是重要价值客户」名单级问题"
+  },
+  "dw_ads_traffic_retention_daily_df": {
+    "layer": "ADS",
+    "source": "ads.ads_traffic_retention_daily_df",
+    "grain": "同期群日（8 行，核心窗口）",
+    "served_for": "逐日次日留存率曲线"
+  },
+  "dw_ads_traffic_retention_layer_df": {
+    "layer": "ADS",
+    "source": "ads.ads_traffic_retention_layer_df",
+    "grain": "活跃分层（4 行，核心窗口）",
+    "served_for": "按活跃天数分层的次日留存率对比"
+  },
+  "dw_ads_traffic_path_summary_df": {
+    "layer": "ADS",
+    "source": "ads.ads_traffic_path_summary_df",
+    "grain": "路径（4 行，核心窗口）",
+    "served_for": "仅浏览/直接购买/先加购/先收藏 四条路径的对数与购买率"
+  },
+  "dw_ads_traffic_association_rules_df": {
+    "layer": "ADS",
+    "source": "ads.ads_traffic_association_rules_df",
+    "grain": "关联规则（Top100，核心窗口）",
+    "served_for": "类目关联规则：support / confidence / lift 榜单"
+  }
+}
