@@ -16,3 +16,6 @@ __pycache__/
 
 # 本地学习笔记（不随仓库发布）
 docs/
+.env
+# 二期 A1 导出数据（TSV，勿入库）
+export/

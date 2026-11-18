@@ -7,11 +7,37 @@ services:
       - "10002:10002"
     environment:
       SERVICE_NAME: hiveserver2
+      SERVICE_OPTS: "-Xmx4G"
     volumes:
       - ./hive-data:/opt/hive/data/warehouse
       - ./sql:/opt/sql
-      - hive-metastore:/opt/hive/metastore_db      # ← 绑定挂载改命名卷
+      - hive-metastore:/opt/hive/metastore_db
+
+  pg16:
+    image: pgvector/pgvector:pg16
+    container_name: pg16
+    ports:
+      - "127.0.0.1:5432:5432"          # 只绑本机，别暴露到局域网
+    environment:
+      POSTGRES_USER: dw
+      POSTGRES_PASSWORD: ${PG_PASSWORD:?需要在 .env 里设置 PG_PASSWORD}
+      POSTGRES_DB: dw
+      POSTGRES_HOST_AUTH_METHOD: scram-sha-256   # 仅空卷首启生效；已有卷见 scripts/init_roles_pg.sh 注释
+      TZ: Asia/Shanghai
+      PGTZ: Asia/Shanghai
+    volumes:
+      - pg-data:/var/lib/postgresql/data
+      - ./export:/export:ro
+    command: >
+      postgres -c timezone=Asia/Shanghai -c log_timezone=Asia/Shanghai
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U dw -d dw"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
 
 volumes:
   hive-metastore:
-    name: hive-metastore                            # ← 固定卷名，方便手工初始化
+    name: hive-metastore
+  pg-data:
+    name: pg-data                        # ← 漏了这三行，就是上面的报错

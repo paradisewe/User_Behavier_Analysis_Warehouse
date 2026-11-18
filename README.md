@@ -116,6 +116,9 @@ ADS 应用层（13 张：一表一问题）
 `ads_traffic_rfm_df` · `ads_traffic_retention_daily_df` · `ads_traffic_retention_layer_df` ·
 `ads_traffic_path_summary_df` · `ads_traffic_association_rules_df`
 
+> 另：Phase A1 将其中 19 张（6 张 DWS + 13 张 ADS）镜像到 PostgreSQL 服务层；明细表
+> `dws_traffic_user_item_df`（7,600 万行）刻意不入镜像，留给明细下钻，见 §10。
+
 ---
 
 ## 5. 关键设计决策
@@ -129,6 +132,7 @@ ADS 应用层（13 张：一表一问题）
 | **全链路幂等** | `CREATE IF NOT EXISTS` + `INSERT OVERWRITE`；容器重建后一条脚本整体恢复 |
 | **Metastore 用命名卷 + 种子法** | Derby 拒绝「已存在但非合法库」的目录（XBM0J），空卷挂载必然启动失败；先把合法库种进卷才能持久化（生产建议改 PostgreSQL） |
 | **双管道对账** | 同一份 CSV 用 Hive 与 DuckDB 两条独立实现，逐指标相减——比分看板更能证明正确性 |
+| **服务层选 PostgreSQL 而非 MySQL** | ① 技能增量：`COPY` / 事务性 DDL / 角色级 `statement_timeout` / `pgvector`；② 组件收敛：A3 的向量检索复用同一镜像；③ 数据量小（1,083 万行），两者优化器差异不可见，选型不必为性能付费 |
 
 ---
 
@@ -229,7 +233,8 @@ B 组（基线 = 上游 5% 抽样的分析结论，只比结构）：
 
 ```
 User_Behavier_Analysis_Warehouse/
-├── docker-compose.yml           # Hive 4.0.0 单容器：warehouse 绑定挂载 + metastore 命名卷
+├── docker-compose.yml           # Hive 4.0.0 + PostgreSQL 16（pgvector）双容器
+├── docker/pg/schema.sql         # 服务层镜像 19 张表（单事务 DDL）
 ├── sql/
 │   ├── ODS/ods_ddl.hql, ods_etl.hql
 │   ├── DWD/dwd_ddl.hql, dwd_etl.hql
@@ -238,10 +243,14 @@ User_Behavier_Analysis_Warehouse/
 ├── scripts/
 │   ├── build_warehouse.sh       # 一键建仓（数据校验 → 探活 → 四层 → 烟测）
 │   ├── verify.sh                # 结构 + 内部一致性（17 项）
-│   └── verify_compare.py        # 跨管道对账（108 项）
+│   ├── verify_compare.py        # 跨管道对账（108 项）
+│   ├── export_to_pg.sh          # Hive → TSV → PG（事务 COPY + ANALYZE）
+│   └── verify_export.py         # 镜像验收（行数三方 + 列指纹 + ANALYZE 探针）
 ├── hive-data/                   # 运行时 ORC 数据（gitignore）
 │   └── ods.db/ dwd.db/ dws.db/ ads.db/
+├── export/                      # 导出 TSV 中转（gitignore）
 ├──（命名卷 hive-metastore）     # Derby 元数据库，挂载到容器 /opt/hive/metastore_db
+├──（命名卷 pg-data）            # PostgreSQL 数据目录
 └── verify_out/                  # 对账导出的 TSV（gitignore）
 ```
 
@@ -253,8 +262,8 @@ User_Behavier_Analysis_Warehouse/
 
 | 阶段 | 内容 |
 |---|---|
-| 服务层 | DWS/ADS 导出 **MySQL 镜像**，Agent 毫秒级查询 |
-| 元数据知识库 | MySQL（结构化元数据）+ Qdrant（字段/指标向量）+ ES（字段取值检索） |
+| 服务层 | 6 DWS + 13 ADS 导出 **PostgreSQL 16 镜像**（19 张 / 1,083 万行），Agent 毫秒级查询 |
+| 元数据知识库 | PostgreSQL（结构化元数据；`pgvector` 可替代 Qdrant，A3 再定）+ ES（字段取值检索） |
 | 编排 | **LangGraph** 多阶段：抽关键词 → 多路召回 → 上下文补全 → SQL 生成 → EXPLAIN 校验 → 回改 → 执行 → 流式返回 |
 | 增量 | 融合 Dify 版「问项目」RAG 分支；Dify 版定位为 MVP，叙事为「原型 → 工程化」 |
 | **评测集** | 50 条问题（含多表 JOIN / 口径歧义 / 日期陷阱），指标 = 准确率 / 口径命中率 / 轮次 / 延迟；**失败案例写进 README** |
