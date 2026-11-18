@@ -10,8 +10,15 @@
     "unit": "天",
     "time_window": "全数据期 2017-11-01 ~ 2018-01-01（54 个活跃日，日期稀疏）",
     "caveat": "只统计「有行为」的日期；日期在原始数据中稀疏，不等于自然日连续区间",
-    "aliases": ["活跃天数", "active days", "活跃日数"],
-    "columns": ["user_id", "active_days"]
+    "aliases": [
+      "活跃天数",
+      "active days",
+      "活跃日数"
+    ],
+    "columns": [
+      "user_id",
+      "active_days"
+    ]
   },
   {
     "metric_id": "user_buy_cnt",
@@ -24,8 +31,15 @@
     "unit": "次",
     "time_window": "全数据期 2017-11-01 ~ 2018-01-01",
     "caveat": "去重后的 DWD 口径：同一行为行的重复已被剔除，但同一用户同日多次购买会计多次",
-    "aliases": ["购买次数", "buy count", "下单次数"],
-    "columns": ["user_id", "buy_cnt"]
+    "aliases": [
+      "购买次数",
+      "buy count",
+      "下单次数"
+    ],
+    "columns": [
+      "user_id",
+      "buy_cnt"
+    ]
   },
   {
     "metric_id": "category_buy_cnt",
@@ -38,8 +52,15 @@
     "unit": "次",
     "time_window": "全数据期 2017-11-01 ~ 2018-01-01",
     "caveat": "要 Top10 榜单用 ADS-06；要类目全景用本表",
-    "aliases": ["类目购买量", "category buy", "类目销量"],
-    "columns": ["category_id", "buy_cnt"]
+    "aliases": [
+      "类目购买量",
+      "category buy",
+      "类目销量"
+    ],
+    "columns": [
+      "category_id",
+      "buy_cnt"
+    ]
   },
   {
     "metric_id": "category_buyer_cnt",
@@ -52,8 +73,14 @@
     "unit": "人",
     "time_window": "全数据期 2017-11-01 ~ 2018-01-01",
     "caveat": "同一用户可计入多个类目，不可跨类目求和当作总买家数",
-    "aliases": ["类目买家数", "category buyers"],
-    "columns": ["category_id", "buyer_cnt"]
+    "aliases": [
+      "类目买家数",
+      "category buyers"
+    ],
+    "columns": [
+      "category_id",
+      "buyer_cnt"
+    ]
   },
   {
     "metric_id": "user_category_daily_buy",
@@ -66,8 +93,16 @@
     "unit": "次",
     "time_window": "核心窗口 2017-11-25 ~ 2017-12-03（9 天）",
     "caveat": "窗口只有 9 天；关联规则用它按用户聚合出购物篮",
-    "aliases": ["类目日购买", "user category daily buy"],
-    "columns": ["user_id", "category_id", "stat_date", "buy_cnt"]
+    "aliases": [
+      "类目日购买",
+      "user category daily buy"
+    ],
+    "columns": [
+      "user_id",
+      "category_id",
+      "stat_date",
+      "buy_cnt"
+    ]
   },
   {
     "metric_id": "behavior_cnt",
@@ -80,8 +115,15 @@
     "unit": "次",
     "time_window": "全数据期 2017-11-01 ~ 2018-01-01",
     "caveat": "四类之和 = DWD 去重后总行数 100,147,758；行为分布不是用户分布",
-    "aliases": ["行为分布", "pv/uv 次数", "behavior count"],
-    "columns": ["behavior_type", "behavior_cnt"]
+    "aliases": [
+      "行为分布",
+      "pv/uv 次数",
+      "behavior count"
+    ],
+    "columns": [
+      "behavior_type",
+      "behavior_cnt"
+    ]
   },
   {
     "metric_id": "behavior_pct",
@@ -94,8 +136,15 @@
     "unit": "ratio",
     "time_window": "全数据期 2017-11-01 ~ 2018-01-01",
     "caveat": "分母是行为总次数（浏览约占 89.6%），不是用户数",
-    "aliases": ["行为占比", "占比", "behavior share"],
-    "columns": ["behavior_type", "pct"]
+    "aliases": [
+      "行为占比",
+      "占比",
+      "behavior share"
+    ],
+    "columns": [
+      "behavior_type",
+      "pct"
+    ]
   },
   {
     "metric_id": "dau",
@@ -108,8 +157,16 @@
     "unit": "人",
     "time_window": "全数据期 2017-11-01 ~ 2018-01-01（54 个活跃日）",
     "caveat": "日期稀疏（仅 54 个活跃日），不要按自然日连续画图；跨日不可求和",
-    "aliases": ["日活", "DAU", "UV", "日活跃用户"],
-    "columns": ["stat_date", "uv"]
+    "aliases": [
+      "日活",
+      "DAU",
+      "UV",
+      "日活跃用户"
+    ],
+    "columns": [
+      "stat_date",
+      "uv"
+    ]
   },
   {
     "metric_id": "daily_buy_cnt",
@@ -122,8 +179,15 @@
     "unit": "次",
     "time_window": "全数据期 2017-11-01 ~ 2018-01-01",
     "caveat": "与 daily_buy_users 不同：一次购买可来自同一用户的多次行为",
-    "aliases": ["日销量", "daily buy"],
-    "columns": ["stat_date", "buy_cnt"]
+    "aliases": [
+      "日销量",
+      "daily buy",
+      "每天购买次数"
+    ],
+    "columns": [
+      "stat_date",
+      "buy_cnt"
+    ]
   },
   {
     "metric_id": "daily_buy_users",
@@ -136,8 +200,16 @@
     "unit": "人",
     "time_window": "全数据期 2017-11-01 ~ 2018-01-01",
     "caveat": "一个人当日买多次只计一次；不可与购买次数混用",
-    "aliases": ["日购买人数", "daily buyers"],
-    "columns": ["stat_date", "buy_user_cnt"]
+    "aliases": [
+      "日购买人数",
+      "daily buyers",
+      "每天购买人数",
+      "购买人数"
+    ],
+    "columns": [
+      "stat_date",
+      "buy_user_cnt"
+    ]
   },
   {
     "metric_id": "funnel_users",
@@ -150,8 +222,15 @@
     "unit": "人",
     "time_window": "全数据期 2017-11-01 ~ 2018-01-01",
     "caveat": "「发生过」而非「依次发生」；要顺序漏斗用 ADS-03（用户×商品级）",
-    "aliases": ["漏斗", "行为用户数", "funnel users"],
-    "columns": ["stage", "user_cnt"]
+    "aliases": [
+      "漏斗",
+      "行为用户数",
+      "funnel users"
+    ],
+    "columns": [
+      "stage",
+      "user_cnt"
+    ]
   },
   {
     "metric_id": "funnel_rate",
@@ -164,8 +243,15 @@
     "unit": "ratio",
     "time_window": "全数据期 2017-11-01 ~ 2018-01-01",
     "caveat": "分母固定为浏览用户；不是层间环比转化率",
-    "aliases": ["漏斗转化率", "转化率", "funnel rate"],
-    "columns": ["stage", "from_view_rate"]
+    "aliases": [
+      "漏斗转化率",
+      "转化率",
+      "funnel rate"
+    ],
+    "columns": [
+      "stage",
+      "from_view_rate"
+    ]
   },
   {
     "metric_id": "item_funnel_pairs",
@@ -178,8 +264,15 @@
     "unit": "对数",
     "time_window": "全数据期 2017-11-01 ~ 2018-01-01",
     "caveat": "按首次行为时间先后判定；四条路径对数不可相加（同一对可满足多条）",
-    "aliases": ["商品漏斗", "路径对数", "item funnel pairs"],
-    "columns": ["transition", "pair_cnt"]
+    "aliases": [
+      "商品漏斗",
+      "路径对数",
+      "item funnel pairs"
+    ],
+    "columns": [
+      "transition",
+      "pair_cnt"
+    ]
   },
   {
     "metric_id": "item_funnel_rate",
@@ -192,8 +285,17 @@
     "unit": "ratio",
     "time_window": "全数据期 2017-11-01 ~ 2018-01-01",
     "caveat": "分母随路径而变（pv_to_* 的分母是浏览对数，cart_to_buy 的分母是加购对数）",
-    "aliases": ["顺序转化率", "item funnel rate"],
-    "columns": ["transition", "rate"]
+    "aliases": [
+      "顺序转化率",
+      "item funnel rate",
+      "加购到购买",
+      "加购转化率",
+      "购物车转化"
+    ],
+    "columns": [
+      "transition",
+      "rate"
+    ]
   },
   {
     "metric_id": "hourly_share",
@@ -206,8 +308,18 @@
     "unit": "ratio",
     "time_window": "全数据期 2017-11-01 ~ 2018-01-01",
     "caveat": "分母是按行为分组的全时段总量，不是全天所有行为；小时为北京时间",
-    "aliases": ["时段占比", "小时分布", "hourly share"],
-    "columns": ["behavior_hour", "behavior_type", "pct"]
+    "aliases": [
+      "时段占比",
+      "小时分布",
+      "hourly share",
+      "最活跃时段",
+      "哪个时段"
+    ],
+    "columns": [
+      "behavior_hour",
+      "behavior_type",
+      "pct"
+    ]
   },
   {
     "metric_id": "category_buy_top10",
@@ -220,8 +332,18 @@
     "unit": "次",
     "time_window": "全数据期 2017-11-01 ~ 2018-01-01",
     "caveat": "只含 Top10；「所有类目」或「第 11 名」要用 DWS category_df",
-    "aliases": ["类目Top10", "热销类目", "category top"],
-    "columns": ["rn", "category_id", "buy_cnt"]
+    "aliases": [
+      "类目Top10",
+      "热销类目",
+      "category top",
+      "卖得最好",
+      "销量最好"
+    ],
+    "columns": [
+      "rn",
+      "category_id",
+      "buy_cnt"
+    ]
   },
   {
     "metric_id": "category_buyer_top10",
@@ -234,8 +356,15 @@
     "unit": "人",
     "time_window": "全数据期 2017-11-01 ~ 2018-01-01",
     "caveat": "同一用户可出现在多个类目；不可求和当总买家数",
-    "aliases": ["Top10买家数", "category buyers top"],
-    "columns": ["rn", "category_id", "buyer_cnt"]
+    "aliases": [
+      "Top10买家数",
+      "category buyers top"
+    ],
+    "columns": [
+      "rn",
+      "category_id",
+      "buyer_cnt"
+    ]
   },
   {
     "metric_id": "category_buy_pct",
@@ -248,8 +377,15 @@
     "unit": "ratio",
     "time_window": "全数据期 2017-11-01 ~ 2018-01-01",
     "caveat": "分母是全部类目的购买次数（含 Top10 之外），不是 Top10 内部占比",
-    "aliases": ["类目占比", "category share"],
-    "columns": ["rn", "category_id", "buy_pct"]
+    "aliases": [
+      "类目占比",
+      "category share"
+    ],
+    "columns": [
+      "rn",
+      "category_id",
+      "buy_pct"
+    ]
   },
   {
     "metric_id": "repurchase_rate",
@@ -262,8 +398,16 @@
     "unit": "ratio",
     "time_window": "全数据期 2017-11-01 ~ 2018-01-01",
     "caveat": "分母是购买用户，不是全部用户；「复购」按购买次数定义，不涉及跨类目或金额",
-    "aliases": ["复购率", "回购率", "repeat purchase rate"],
-    "columns": ["total_buyers", "repeat_buyers", "repurchase_rate"]
+    "aliases": [
+      "复购率",
+      "回购率",
+      "repeat purchase rate"
+    ],
+    "columns": [
+      "total_buyers",
+      "repeat_buyers",
+      "repurchase_rate"
+    ]
   },
   {
     "metric_id": "segmentation_share",
@@ -276,8 +420,21 @@
     "unit": "ratio",
     "time_window": "全数据期 2017-11-01 ~ 2018-01-01",
     "caveat": "分层互斥且穷尽，四层之和 = 全部用户 987,993",
-    "aliases": ["用户分层", "用户结构", "segmentation"],
-    "columns": ["segment", "user_cnt", "pct"]
+    "aliases": [
+      "用户分层",
+      "用户结构",
+      "segmentation",
+      "仅浏览用户",
+      "从没购买",
+      "从未购买",
+      "只浏览",
+      "浏览未购买"
+    ],
+    "columns": [
+      "segment",
+      "user_cnt",
+      "pct"
+    ]
   },
   {
     "metric_id": "rfm_recency_days",
@@ -290,8 +447,16 @@
     "unit": "天",
     "time_window": "核心窗口 2017-11-25 ~ 2017-12-03（9 天）",
     "caveat": "未购买用户的 R 是 NULL 不是 0；求均值时必须先排除，否则结果失真",
-    "aliases": ["R值", "最近购买", "recency", "近度"],
-    "columns": ["user_id", "recency_days"]
+    "aliases": [
+      "R值",
+      "最近购买",
+      "recency",
+      "近度"
+    ],
+    "columns": [
+      "user_id",
+      "recency_days"
+    ]
   },
   {
     "metric_id": "rfm_frequency",
@@ -304,22 +469,39 @@
     "unit": "次",
     "time_window": "核心窗口 2017-11-25 ~ 2017-12-03（9 天）",
     "caveat": "窗口外购买不计入；与 user_summary 的全期 buy_cnt 口径不同",
-    "aliases": ["F值", "购买频次", "frequency", "频度"],
-    "columns": ["user_id", "frequency"]
+    "aliases": [
+      "F值",
+      "购买频次",
+      "frequency",
+      "频度"
+    ],
+    "columns": [
+      "user_id",
+      "frequency"
+    ]
   },
   {
     "metric_id": "rfm_segment",
     "metric_name": "RFM 用户分层",
-    "definition": "按 R/F 得分划分为重要价值/重要发展/重要保持/重要挽留/一般价值/一般挽留/未购买用户",
-    "formula": "case when r>=3 and f>=3 then '重要价值' ... end",
+    "definition": "按 R/F 得分划分为：重要价值客户/重要发展客户/重要保持客户/重要挽留客户/一般价值客户/一般挽留客户/未购买用户",
+    "formula": "case when r>=3 and f>=3 then '重要价值客户' ... end",
     "grain": "用户（核心窗口）",
     "source_table": "dw_ads_traffic_rfm_df",
     "value_column": "segment",
     "unit": "枚举",
     "time_window": "核心窗口 2017-11-25 ~ 2017-12-03（9 天）",
     "caveat": "只有 R/F 两维，没有金额维度；分箱按排名四分位（ntile(4)）",
-    "aliases": ["RFM", "客户分层", "用户价值分层"],
-    "columns": ["user_id", "segment"]
+    "aliases": [
+      "RFM",
+      "客户分层",
+      "用户价值分层",
+      "重要价值客户",
+      "RFM分层"
+    ],
+    "columns": [
+      "user_id",
+      "segment"
+    ]
   },
   {
     "metric_id": "retention_next_day",
@@ -332,8 +514,17 @@
     "unit": "ratio",
     "time_window": "核心窗口 2017-11-25 ~ 2017-12-02（末日无次日数据）",
     "caveat": "只有 8 行：窗口最后一天（12-03）没有次日，无法计算；分母是当日活跃用户",
-    "aliases": ["次日留存", "留存率", "next day retention"],
-    "columns": ["stat_date", "cohort_users", "retained_users", "next_day_rate"]
+    "aliases": [
+      "次日留存",
+      "留存率",
+      "next day retention"
+    ],
+    "columns": [
+      "stat_date",
+      "cohort_users",
+      "retained_users",
+      "next_day_rate"
+    ]
   },
   {
     "metric_id": "retention_layer_rate",
@@ -346,8 +537,17 @@
     "unit": "ratio",
     "time_window": "核心窗口 2017-11-25 ~ 2017-12-03",
     "caveat": "人-日对口径，不是用户口径；与逐日留存的分母不同，数值不可直接对齐",
-    "aliases": ["分层留存", "留存分层", "retention layer"],
-    "columns": ["layer", "eligible_pairs", "retained_pairs", "next_day_rate"]
+    "aliases": [
+      "分层留存",
+      "留存分层",
+      "retention layer"
+    ],
+    "columns": [
+      "layer",
+      "eligible_pairs",
+      "retained_pairs",
+      "next_day_rate"
+    ]
   },
   {
     "metric_id": "retention_avg_eligible_days",
@@ -360,8 +560,15 @@
     "unit": "天",
     "time_window": "核心窗口 2017-11-25 ~ 2017-12-03",
     "caveat": "窗口只有 9 天，上限受窗口长度约束",
-    "aliases": ["可留存天数", "eligible days"],
-    "columns": ["layer", "users", "avg_eligible_days"]
+    "aliases": [
+      "可留存天数",
+      "eligible days"
+    ],
+    "columns": [
+      "layer",
+      "users",
+      "avg_eligible_days"
+    ]
   },
   {
     "metric_id": "path_pairs",
@@ -374,8 +581,15 @@
     "unit": "对数",
     "time_window": "核心窗口 2017-11-25 ~ 2017-12-03",
     "caveat": "按首次浏览时间过滤窗口，会排除「窗口前浏览、窗口内购买」的跨界对子",
-    "aliases": ["路径对数", "用户路径", "path pairs"],
-    "columns": ["path", "pairs"]
+    "aliases": [
+      "路径对数",
+      "用户路径",
+      "path pairs"
+    ],
+    "columns": [
+      "path",
+      "pairs"
+    ]
   },
   {
     "metric_id": "path_purchase_rate",
@@ -388,8 +602,16 @@
     "unit": "ratio",
     "time_window": "核心窗口 2017-11-25 ~ 2017-12-03",
     "caveat": "分母是该路径对数，不是全体对数；四条路径的转化率不能加权平均成总体转化率",
-    "aliases": ["路径转化率", "购买转化率", "path conversion"],
-    "columns": ["path", "purchased", "purchase_rate"]
+    "aliases": [
+      "路径转化率",
+      "购买转化率",
+      "path conversion"
+    ],
+    "columns": [
+      "path",
+      "purchased",
+      "purchase_rate"
+    ]
   },
   {
     "metric_id": "path_share",
@@ -402,8 +624,14 @@
     "unit": "ratio",
     "time_window": "核心窗口 2017-11-25 ~ 2017-12-03",
     "caveat": "分母是全部有浏览的对数；四条路径占比之和 = 1",
-    "aliases": ["路径占比", "path share"],
-    "columns": ["path", "share_of_browsed"]
+    "aliases": [
+      "路径占比",
+      "path share"
+    ],
+    "columns": [
+      "path",
+      "share_of_browsed"
+    ]
   },
   {
     "metric_id": "assoc_support",
@@ -416,8 +644,16 @@
     "unit": "ratio",
     "time_window": "核心窗口 2017-11-25 ~ 2017-12-03",
     "caveat": "购物篮 = 购买 ≥2 个类目的用户；单类目买家不在分母里",
-    "aliases": ["支持度", "support"],
-    "columns": ["rn", "antecedent_category", "consequent_category", "support"]
+    "aliases": [
+      "支持度",
+      "support"
+    ],
+    "columns": [
+      "rn",
+      "antecedent_category",
+      "consequent_category",
+      "support"
+    ]
   },
   {
     "metric_id": "assoc_confidence",
@@ -430,8 +666,16 @@
     "unit": "ratio",
     "time_window": "核心窗口 2017-11-25 ~ 2017-12-03",
     "caveat": "方向性指标：A→B 与 B→A 的置信度不同",
-    "aliases": ["置信度", "confidence"],
-    "columns": ["rn", "antecedent_category", "consequent_category", "confidence"]
+    "aliases": [
+      "置信度",
+      "confidence"
+    ],
+    "columns": [
+      "rn",
+      "antecedent_category",
+      "consequent_category",
+      "confidence"
+    ]
   },
   {
     "metric_id": "assoc_lift",
@@ -444,8 +688,19 @@
     "unit": "ratio",
     "time_window": "核心窗口 2017-11-25 ~ 2017-12-03",
     "caveat": "lift>1 才是正相关；排名按 lift 降序取 Top100，不能反推全量规则数",
-    "aliases": ["提升度", "lift"],
-    "columns": ["rn", "antecedent_category", "consequent_category", "lift"]
+    "aliases": [
+      "提升度",
+      "lift",
+      "经常一起买",
+      "一起买",
+      "捆绑销售"
+    ],
+    "columns": [
+      "rn",
+      "antecedent_category",
+      "consequent_category",
+      "lift"
+    ]
   },
   {
     "metric_id": "total_baskets",
@@ -458,7 +713,35 @@
     "unit": "个",
     "time_window": "核心窗口 2017-11-25 ~ 2017-12-03",
     "caveat": "是全量购物篮分母（约 42 万），不是 Top100 规则的篮子数",
-    "aliases": ["购物篮数", "basket count"],
-    "columns": ["rn", "total_baskets"]
+    "aliases": [
+      "购物篮数",
+      "basket count"
+    ],
+    "columns": [
+      "rn",
+      "total_baskets"
+    ]
+  },
+  {
+    "metric_id": "buyer_cart_overlap",
+    "metric_name": "购买用户中加购过的比例",
+    "definition": "购买用户（buy_cnt>0）中，购物车行为次数（cart_cnt）>0 的用户占比",
+    "formula": "count(user_id where buy_cnt>0 and cart_cnt>0) / count(user_id where buy_cnt>0)",
+    "grain": "用户（一人一行，全期）",
+    "source_table": "dw_dws_traffic_user_summary_df",
+    "value_column": "cart_cnt",
+    "unit": "ratio",
+    "time_window": "全数据期 2017-11-01 ~ 2018-01-01",
+    "caveat": "计算型指标：分母是购买用户数（672404），不是全部用户；value_column 记录参与计算的分子来源列 cart_cnt",
+    "aliases": [
+      "购买用户加购比例",
+      "加购渗透率",
+      "buyer cart rate"
+    ],
+    "columns": [
+      "user_id",
+      "buy_cnt",
+      "cart_cnt"
+    ]
   }
 ]
