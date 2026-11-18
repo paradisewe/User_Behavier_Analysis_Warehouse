@@ -3,10 +3,13 @@
 # A1.3 导出 + 加载：Hive DWS/ADS → export/*.tsv → PostgreSQL
 set -euo pipefail
 
-
+# 项目目录
 REPO_DIR="$(cd "$(dirname "$0")/.." && pwd)"
+# 服务端口
 URL="jdbc:hive2://localhost:10000"
+# 容器
 CONTAINER="hive4"
+# 导出位置
 EXPORT_DIR="$REPO_DIR/export"
 mkdir -p "$EXPORT_DIR"
 
