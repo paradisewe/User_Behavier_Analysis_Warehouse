@@ -259,7 +259,7 @@ def _degrade(evidence):
 
 
 def finalize(state):
-    """组装统一响应（plan.md 4.3），不调模型。"""
+    """组装统一响应（docs/plan.md 4.3），不调模型。"""
     t0 = time.perf_counter()
     trace = list(state.get("trace") or [])
     trace.append(_trace("finalize", t0))

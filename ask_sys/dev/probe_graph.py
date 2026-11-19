@@ -120,7 +120,7 @@ def probe_c():
 def main():
     ai_msg = probe_a()
     if ai_msg is None:
-        print("探针 A 失败：需要改工具协议（结构化 action JSON），先更新 plan.md")
+        print("探针 A 失败：需要改工具协议（结构化 action JSON），先更新 docs/plan.md")
         return 1
     if not probe_b(ai_msg):
         print("探针 B 失败：ToolMessage 回填链路不通，停在 T0")

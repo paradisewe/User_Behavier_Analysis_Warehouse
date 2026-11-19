@@ -4,7 +4,7 @@
     python -m ask_sys.verify.graph            # 全部用例
     python -m ask_sys.verify.graph --quick    # 跳过 agent 用例（不调 LLM 工具循环）
 
-用例口径见 plan.md 第 7 节；通过条件是断言，不要为了过验收改这里的数字。
+用例口径见 docs/plan.md 第 7 节；通过条件是断言，不要为了过验收改这里的数字。
 """
 import re
 import sys

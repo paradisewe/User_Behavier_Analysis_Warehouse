@@ -315,7 +315,6 @@ User_Behavier_Analysis_Warehouse/
 │   ├── ver_langgraph/           # LangGraph StateGraph（agent 工具循环）
 │   ├── verify/                  # branches(8) / graph(16) / knowledge(32 题标注集+三模式评测)
 │   ├── dev/                     # ask_demo 召回演示 / probe_graph 工具调用探针
-│   ├── plan.md + AGENTS.md      # LangGraph 实施方案与协作规范
 │   └── cli.py                   # python -m ask_sys.cli [--engine pipeline|graph] [--sql] [--batch]
 ├── web/index.html               # 问数聊天界面（单文件、无 CDN）
 ├── assets/screenshots/          # README 截图
