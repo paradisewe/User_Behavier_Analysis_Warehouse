@@ -66,7 +66,7 @@
 ## 维护规则
 
 1. 改 prompt、`aliases`、`metrics.json` 后，跑
-   `python scripts/ask_sql.py --file eval/questions.txt > logs/eval.log`，逐条对照本表；
+   `python -m ask_sys.cli --sql --file eval/questions.txt > logs/eval.log`，逐条对照本表；
 2. 只接受「变好或持平」；退化先查是哪条改动引入；
 3. 新增题先在本表写期望，再跑——**先有答案，再看好不好看**；
 4. 同一题跨运行可能不同（`temperature=0` 也不保证确定），判定以本表口径为准；

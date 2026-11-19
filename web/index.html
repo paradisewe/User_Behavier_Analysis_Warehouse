@@ -1,0 +1,884 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>数仓问数助手 · 淘宝用户行为</title>
+<style>
+  :root{
+    --bg:#f4f5f7; --panel:#ffffff; --panel-2:#fafbfc;
+    --ink:#15171c; --ink-2:#3f4450; --muted:#737a88; --faint:#9aa1ad;
+    --line:#e6e8ec; --line-2:#eef0f3;
+    --brand:#4f46e5; --brand-2:#7c6cf6; --brand-soft:#eef0ff;
+    --ok:#16a34a; --warn:#b45309; --warn-soft:#fff7e6; --bad:#dc2626; --bad-soft:#fef2f2;
+    --user-bg:#1f2330; --user-ink:#ffffff;
+    --shadow-sm:0 1px 2px rgba(16,18,25,.05);
+    --shadow:0 8px 28px rgba(16,18,25,.08);
+    --radius:18px;
+    --mono:ui-monospace,SFMono-Regular,"JetBrains Mono",Consolas,"Liberation Mono",monospace;
+  }
+  @media (prefers-color-scheme: dark){
+    :root{
+      --bg:#0e1015; --panel:#171a21; --panel-2:#1c2029;
+      --ink:#eef0f4; --ink-2:#c9ced8; --muted:#98a0ad; --faint:#6f7785;
+      --line:#262b35; --line-2:#20242d;
+      --brand:#8b83ff; --brand-2:#a79fff; --brand-soft:#262346;
+      --ok:#4ade80; --warn:#fbbf24; --warn-soft:#2b2313; --bad:#f87171; --bad-soft:#2c1717;
+      --user-bg:#e8eaf0; --user-ink:#15171c;
+      --shadow:0 10px 32px rgba(0,0,0,.45);
+    }
+  }
+  *{box-sizing:border-box}
+  html,body{height:100%}
+  body{
+    margin:0; color:var(--ink); background:var(--bg);
+    font:15px/1.65 system-ui,-apple-system,"Segoe UI","PingFang SC","Hiragino Sans GB","Microsoft YaHei",sans-serif;
+    -webkit-font-smoothing:antialiased;
+  }
+  body::before{
+    content:""; position:fixed; inset:0; pointer-events:none; z-index:0;
+    background:
+      radial-gradient(600px 320px at 12% -8%, color-mix(in srgb, var(--brand) 12%, transparent), transparent 70%),
+      radial-gradient(520px 300px at 92% 4%, color-mix(in srgb, var(--brand-2) 10%, transparent), transparent 70%);
+  }
+  button{font:inherit; color:inherit; cursor:pointer}
+  .app{position:relative; z-index:1; display:flex; flex-direction:column; height:100dvh; max-width:900px; margin:0 auto}
+
+  /* ---------- 顶栏 ---------- */
+  .topbar{
+    display:flex; align-items:center; justify-content:space-between; gap:14px;
+    padding:14px 20px; border-bottom:1px solid var(--line);
+    background:color-mix(in srgb, var(--panel) 82%, transparent);
+    backdrop-filter:saturate(1.4) blur(12px);
+    position:sticky; top:0; z-index:5;
+  }
+  .brand{display:flex; align-items:center; gap:12px; min-width:0}
+  .logo{
+    width:40px; height:40px; border-radius:13px; flex:none;
+    background:linear-gradient(145deg, var(--brand), var(--brand-2));
+    display:grid; place-items:center; color:#fff; box-shadow:0 6px 16px color-mix(in srgb, var(--brand) 35%, transparent);
+  }
+  .logo svg{width:21px; height:21px}
+  .brand h1{margin:0; font-size:16px; font-weight:650; letter-spacing:.2px}
+  .brand p{margin:1px 0 0; font-size:12px; color:var(--muted); white-space:nowrap; overflow:hidden; text-overflow:ellipsis}
+  .top-actions{display:flex; align-items:center; gap:8px; flex:none}
+  .status{
+    display:inline-flex; align-items:center; gap:7px; padding:5px 10px; border-radius:999px;
+    font-size:12px; color:var(--muted); background:var(--panel-2); border:1px solid var(--line);
+  }
+  .status i{width:7px; height:7px; border-radius:50%; background:var(--faint); transition:background .25s}
+  .status.ok i{background:var(--ok); box-shadow:0 0 0 3px color-mix(in srgb, var(--ok) 18%, transparent)}
+  .status.bad i{background:var(--bad); box-shadow:0 0 0 3px color-mix(in srgb, var(--bad) 18%, transparent)}
+  .icon-btn{
+    width:36px; height:36px; display:grid; place-items:center; border-radius:10px;
+    background:transparent; border:1px solid transparent; color:var(--muted);
+  }
+  .icon-btn:hover{background:var(--panel-2); border-color:var(--line); color:var(--ink)}
+  .icon-btn:disabled{opacity:.4; cursor:not-allowed}
+  .icon-btn svg{width:18px; height:18px}
+  /* 引擎分段切换 */
+  .engine-seg{
+    display:inline-flex; padding:2px; border-radius:10px;
+    background:var(--panel-2); border:1px solid var(--line);
+  }
+  .engine-seg button{
+    padding:4px 10px; border:0; background:transparent; border-radius:8px;
+    font-size:12px; color:var(--muted);
+  }
+  .engine-seg button[aria-checked="true"]{
+    background:var(--panel); color:var(--brand); font-weight:600; box-shadow:var(--shadow-sm);
+  }
+  .engine-seg:disabled{opacity:.55; cursor:not-allowed}
+
+  /* ---------- 聊天区 ---------- */
+  .chat{flex:1; overflow-y:auto; padding:26px 20px 12px; scrollbar-gutter:stable}
+  .chat::-webkit-scrollbar{width:10px}
+  .chat::-webkit-scrollbar-thumb{background:color-mix(in srgb, var(--faint) 35%, transparent); border-radius:99px; border:3px solid transparent; background-clip:content-box}
+
+  .welcome{min-height:100%; display:grid; place-items:center; padding:10px 0 40px}
+  .welcome-card{width:100%; max-width:640px; text-align:center}
+  .spark{
+    width:54px; height:54px; margin:0 auto 16px; border-radius:17px; display:grid; place-items:center;
+    background:linear-gradient(145deg, var(--brand), var(--brand-2)); color:#fff;
+    box-shadow:0 10px 26px color-mix(in srgb, var(--brand) 32%, transparent);
+  }
+  .spark svg{width:27px; height:27px}
+  .welcome h2{margin:0 0 8px; font-size:22px; letter-spacing:.2px}
+  .welcome p{margin:0 auto; max-width:520px; color:var(--muted); font-size:14px}
+  .chips{display:flex; flex-wrap:wrap; gap:9px; justify-content:center; margin-top:22px}
+  .chip{
+    padding:9px 14px; border-radius:999px; border:1px solid var(--line);
+    background:var(--panel); color:var(--ink-2); font-size:13.5px; box-shadow:var(--shadow-sm);
+    transition:transform .15s, border-color .15s, color .15s;
+  }
+  .chip:hover{transform:translateY(-1px); border-color:color-mix(in srgb, var(--brand) 45%, var(--line)); color:var(--brand)}
+
+  .msg{display:flex; gap:12px; margin:0 0 22px; animation:rise .28s ease both}
+  @keyframes rise{from{opacity:0; transform:translateY(8px)} to{opacity:1; transform:none}}
+  .msg.user{flex-direction:row-reverse}
+  .avatar{
+    width:32px; height:32px; border-radius:10px; flex:none; display:grid; place-items:center;
+    font-size:12px; font-weight:650; letter-spacing:.4px; margin-top:2px;
+  }
+  .avatar.ai{background:linear-gradient(145deg, var(--brand), var(--brand-2)); color:#fff}
+  .avatar.me{background:var(--panel); border:1px solid var(--line); color:var(--muted)}
+  .msg-main{min-width:0; flex:1; display:flex; flex-direction:column; gap:6px}
+  .msg.user .msg-main{flex:0 1 auto; max-width:78%; align-items:flex-end}
+  .msg-name{font-size:12px; color:var(--faint); padding:0 2px}
+  .bubble{
+    background:var(--user-bg); color:var(--user-ink); padding:10px 14px; border-radius:16px 16px 4px 16px;
+    font-size:14.5px; max-width:100%; word-break:break-word; box-shadow:var(--shadow-sm);
+  }
+  .msg-body{min-width:0; width:100%}
+  .lead{margin:0 0 12px; color:var(--ink-2); font-size:14.5px}
+  .lead strong{color:var(--ink); font-weight:650}
+
+  /* 表格 */
+  .table-card{border:1px solid var(--line); border-radius:14px; overflow:hidden; background:var(--panel); box-shadow:var(--shadow-sm); margin:2px 0 12px}
+  .table-scroll{overflow:auto; max-height:340px}
+  table{border-collapse:collapse; width:100%; font-size:13.5px}
+  thead th{
+    position:sticky; top:0; z-index:1; text-align:left; font-weight:600; color:var(--ink-2);
+    background:var(--panel-2); padding:9px 12px; border-bottom:1px solid var(--line); white-space:nowrap;
+  }
+  tbody td{padding:8px 12px; border-bottom:1px solid var(--line-2); white-space:nowrap; max-width:280px; overflow:hidden; text-overflow:ellipsis}
+  tbody tr:last-child td{border-bottom:0}
+  tbody tr:nth-child(even){background:color-mix(in srgb, var(--panel-2) 70%, transparent)}
+  tbody tr:hover{background:color-mix(in srgb, var(--brand) 6%, transparent)}
+  td.num,th.num{text-align:right; font-variant-numeric:tabular-nums; font-family:var(--mono); font-size:12.8px}
+
+  /* 空结果 / 拒答 / 错误 */
+  .notice{display:flex; gap:11px; padding:13px 14px; border-radius:14px; border:1px solid var(--line); background:var(--panel); margin:0 0 12px}
+  .notice .ico{width:20px; height:20px; flex:none; margin-top:1px}
+  .notice h4{margin:0 0 3px; font-size:14px}
+  .notice p{margin:0; font-size:13.5px; color:var(--muted)}
+  .notice.warn{background:var(--warn-soft); border-color:color-mix(in srgb, var(--warn) 25%, var(--line))}
+  .notice.warn .ico{color:var(--warn)}
+  .notice.err{background:var(--bad-soft); border-color:color-mix(in srgb, var(--bad) 25%, var(--line))}
+  .notice.err .ico{color:var(--bad)}
+  .empty{text-align:center; padding:18px 12px; color:var(--muted); font-size:13.5px; border:1px dashed var(--line); border-radius:14px; margin-bottom:12px}
+  .empty b{display:block; color:var(--ink-2); margin-bottom:3px; font-weight:600}
+
+  /* 元信息 + SQL */
+  .meta{display:flex; flex-wrap:wrap; gap:6px; margin:0 0 10px}
+  .pill{font-size:11.5px; color:var(--muted); background:var(--panel-2); border:1px solid var(--line); border-radius:999px; padding:2px 9px}
+  .pill.warn{color:var(--warn); border-color:color-mix(in srgb, var(--warn) 30%, var(--line))}
+  .sql-box{border:1px solid var(--line); border-radius:12px; background:var(--panel); overflow:hidden}
+  .sql-box summary{
+    list-style:none; cursor:pointer; padding:9px 12px; font-size:12.5px; color:var(--muted);
+    display:flex; align-items:center; gap:7px; user-select:none;
+  }
+  .sql-box summary::-webkit-details-marker{display:none}
+  .sql-box summary:hover{color:var(--ink)}
+  .sql-box summary svg{width:14px; height:14px; transition:transform .18s}
+  .sql-box[open] summary svg{transform:rotate(90deg)}
+  .sql-body{border-top:1px solid var(--line-2)}
+  .sql-head{display:flex; align-items:center; justify-content:space-between; padding:6px 10px; background:var(--panel-2)}
+  .sql-head span{font-size:11px; letter-spacing:.6px; color:var(--faint); text-transform:uppercase}
+  .copy{padding:3px 9px; font-size:11.5px; border-radius:7px; border:1px solid var(--line); background:var(--panel); color:var(--muted)}
+  .copy:hover{color:var(--brand); border-color:color-mix(in srgb, var(--brand) 40%, var(--line))}
+  .sql-box pre{margin:0; padding:12px; overflow:auto; font:12.5px/1.7 var(--mono); color:var(--ink-2); white-space:pre-wrap; word-break:break-word}
+
+  /* 分支徽标 / 知识引用 / 分析步骤 */
+  .branch-badge{
+    display:inline-flex; align-items:center; gap:5px; margin-left:7px; padding:1px 8px;
+    border-radius:999px; border:1px solid var(--line); background:var(--panel-2);
+    font-size:10.5px; color:var(--muted); vertical-align:1px;
+  }
+  .branch-badge::before{content:""; width:5px; height:5px; border-radius:50%; background:currentColor}
+  .branch-badge.sql{color:#7c6cf6}
+  .branch-badge.knowledge{color:#5b9cf8}
+  .branch-badge.agent{color:#2bb3a3}
+  .branch-badge.fallback{color:var(--faint)}
+  .branch-badge.error{color:var(--bad)}
+  .prose{font-size:14.5px; color:var(--ink-2); white-space:pre-wrap; line-height:1.75; margin:0 0 10px}
+  .prose p{margin:0 0 8px}
+  .prose p:last-child{margin-bottom:0}
+  .prose strong{color:var(--ink); font-weight:650}
+  .prose code{font:12.5px var(--mono); background:var(--panel-2); border:1px solid var(--line-2); padding:1px 4px; border-radius:5px}
+  .cites{display:flex; flex-direction:column; gap:7px; margin:2px 0 12px}
+  .cite{display:flex; gap:8px; border-left:2px solid color-mix(in srgb, var(--brand) 35%, var(--line)); padding:2px 0 2px 10px}
+  .cite .no{font-size:11.5px; color:var(--faint); font-variant-numeric:tabular-nums; padding-top:1px}
+  .cite .body{min-width:0}
+  .cite .src{display:block; font:11.5px var(--mono); color:var(--faint); margin-bottom:1px}
+  .cite .txt{font-size:12.5px; color:var(--muted); display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; overflow:hidden}
+  .step{border:1px solid var(--line); border-radius:12px; background:var(--panel); margin:0 0 8px; overflow:hidden}
+  .step summary{list-style:none; cursor:pointer; padding:9px 12px; display:flex; align-items:center; gap:9px; font-size:13px; color:var(--ink-2); user-select:none}
+  .step summary::-webkit-details-marker{display:none}
+  .step summary:hover{background:var(--panel-2)}
+  .step .idx{
+    width:19px; height:19px; flex:none; border-radius:6px; display:grid; place-items:center;
+    background:var(--brand-soft); color:var(--brand); font-size:11px; font-weight:650;
+  }
+  .step .q{flex:1; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap}
+  .step .st{font-size:11px; color:var(--faint); flex:none}
+  .step .st.bad{color:var(--bad)}
+  .step .chev{width:14px; height:14px; flex:none; color:var(--faint); transition:transform .18s}
+  .step[open] .chev{transform:rotate(90deg)}
+  .step-body{padding:2px 12px 12px; border-top:1px solid var(--line-2)}
+  .step .why{font-size:12px; color:var(--muted); margin:8px 0}
+  .step .table-card{margin:8px 0 10px}
+
+  /* 打字指示 */
+  .loading{display:flex; align-items:center; gap:12px; padding:10px 12px; border:1px solid var(--line); background:var(--panel); border-radius:14px; width:max-content; max-width:100%}
+  .dots{display:inline-flex; gap:4px}
+  .dots i{width:6px; height:6px; border-radius:50%; background:var(--brand); opacity:.35; animation:pulse 1.15s infinite}
+  .dots i:nth-child(2){animation-delay:.16s}
+  .dots i:nth-child(3){animation-delay:.32s}
+  @keyframes pulse{0%,100%{opacity:.28; transform:translateY(0)} 45%{opacity:1; transform:translateY(-2px)}}
+  .phase{font-size:13px; color:var(--ink-2)}
+  .elapsed{font-size:11.5px; color:var(--faint); font-variant-numeric:tabular-nums}
+
+  /* ---------- 输入区 ---------- */
+  .composer-wrap{padding:10px 20px 18px; background:linear-gradient(to top, var(--bg) 62%, transparent)}
+  .composer{
+    display:flex; align-items:flex-end; gap:10px; padding:10px 10px 10px 16px;
+    background:var(--panel); border:1px solid var(--line); border-radius:20px; box-shadow:var(--shadow);
+    transition:border-color .15s, box-shadow .15s;
+  }
+  .composer:focus-within{border-color:color-mix(in srgb, var(--brand) 45%, var(--line)); box-shadow:0 0 0 4px color-mix(in srgb, var(--brand) 10%, transparent), var(--shadow)}
+  .composer textarea{
+    flex:1; border:0; outline:0; resize:none; background:transparent; color:var(--ink);
+    font:inherit; font-size:14.5px; line-height:1.55; max-height:150px; padding:6px 0;
+  }
+  .composer textarea::placeholder{color:var(--faint)}
+  .send{
+    width:38px; height:38px; flex:none; border-radius:12px; border:0; color:#fff;
+    background:linear-gradient(145deg, var(--brand), var(--brand-2)); display:grid; place-items:center;
+    box-shadow:0 6px 14px color-mix(in srgb, var(--brand) 30%, transparent);
+    transition:opacity .15s, transform .15s;
+  }
+  .send:disabled{opacity:.35; box-shadow:none; cursor:not-allowed}
+  .send:not(:disabled):hover{transform:translateY(-1px)}
+  .send svg{width:18px; height:18px}
+  .send .stop{display:none}
+  .send.busy{background:var(--panel); color:var(--ink); border:1px solid var(--line); box-shadow:var(--shadow-sm)}
+  .send.busy .arrow{display:none}
+  .send.busy .stop{display:block}
+  .hint{display:flex; justify-content:space-between; gap:12px; padding:8px 6px 0; font-size:11.5px; color:var(--faint)}
+  .hint kbd{font:inherit; padding:1px 5px; border:1px solid var(--line); border-bottom-width:2px; border-radius:5px; background:var(--panel-2)}
+
+  @media (max-width:640px){
+    .topbar{padding:12px 14px}
+    .brand p{display:none}
+    .chat{padding:18px 14px 8px}
+    .composer-wrap{padding:8px 14px 14px}
+    .hint span:last-child{display:none}
+    .msg{gap:9px}
+    .msg-main{max-width:calc(100% - 41px)}
+  }
+  @media (prefers-reduced-motion: reduce){
+    *{animation:none!important; transition:none!important; scroll-behavior:auto!important}
+  }
+</style>
+</head>
+<body>
+<div class="app">
+  <header class="topbar">
+    <div class="brand">
+      <div class="logo" aria-hidden="true">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round">
+          <ellipse cx="12" cy="5.5" rx="7" ry="3"/><path d="M5 5.5v6c0 1.66 3.13 3 7 3s7-1.34 7-3v-6"/><path d="M5 11.5v6c0 1.66 3.13 3 7 3s7-1.34 7-3v-6"/>
+        </svg>
+      </div>
+      <div>
+        <h1>数仓问数助手</h1>
+        <p>淘宝用户行为 · 2017-11-25 ~ 2017-12-03 · DWS / ADS 19 表</p>
+      </div>
+    </div>
+    <div class="top-actions">
+      <div class="engine-seg" id="engineSeg" role="radiogroup" aria-label="编排引擎">
+        <button type="button" data-engine="pipeline" role="radio" aria-checked="true">pipeline</button>
+        <button type="button" data-engine="graph" role="radio" aria-checked="false">graph</button>
+      </div>
+      <span id="status" class="status" title="正在检查引擎"><i></i><span>连接中</span></span>
+      <button id="clear" class="icon-btn" type="button" title="清空对话" aria-label="清空对话" disabled>
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M4 7h16M9 7V5h6v2M6 7l1 13h10l1-13"/><path d="M10 11v5M14 11v5"/></svg>
+      </button>
+    </div>
+  </header>
+
+  <main id="chat" class="chat" aria-live="polite">
+    <section id="welcome" class="welcome">
+      <div class="welcome-card">
+        <div class="spark" aria-hidden="true">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M12 3l1.9 5.1L19 10l-5.1 1.9L12 17l-1.9-5.1L5 10l5.1-1.9L12 3z"/><path d="M18.5 15.5l.8 2.2 2.2.8-2.2.8-.8 2.2-.8-2.2-2.2-.8 2.2-.8.8-2.2z"/>
+          </svg>
+        </div>
+        <h2>问一句，直接从数仓取数</h2>
+        <p>覆盖流量、漏斗、留存、RFM、用户路径与类目关联规则。每次只生成一条只读 SELECT，答案附带可复现的 SQL。</p>
+        <div class="chips" id="chips"></div>
+      </div>
+    </section>
+  </main>
+
+  <footer class="composer-wrap">
+    <form id="composer" class="composer" autocomplete="off">
+      <textarea id="input" rows="1" placeholder="问点什么，例如：12-02 的 DAU 是多少" aria-label="输入问题"></textarea>
+      <button id="send" class="send" type="submit" disabled title="发送（Enter）" aria-label="发送">
+        <svg class="arrow" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 19V5M5 12l7-7 7 7"/></svg>
+        <svg class="stop" viewBox="0 0 24 24" fill="currentColor"><rect x="7" y="7" width="10" height="10" rx="2"/></svg>
+      </button>
+    </form>
+    <div class="hint">
+      <span><kbd>Enter</kbd> 发送 · <kbd>Shift</kbd>+<kbd>Enter</kbd> 换行</span>
+      <span>只读账号 dw_ro · 单条 SELECT · 30s 超时 · 最多 100 行</span>
+    </div>
+  </footer>
+</div>
+
+<script>
+(() => {
+  "use strict";
+  const $ = (s, r = document) => r.querySelector(s);
+  const chat = $("#chat"), welcome = $("#welcome"), chips = $("#chips");
+  const form = $("#composer"), input = $("#input"), sendBtn = $("#send");
+  const statusEl = $("#status"), clearBtn = $("#clear"), engineSeg = $("#engineSeg");
+
+  const CHIPS = [
+    "12-02 的 DAU 是多少",
+    "哪些类目卖得最好",
+    "复购率的口径怎么定义",
+    "为什么用 PostgreSQL 而不是 MySQL",
+    "为什么 12-02 的 DAU 比前一天高",
+    "对比 12-01 和 12-02 的购买人数并解释",
+    "项目的对账是怎么做的",
+    "你好"
+  ];
+  const PHASES = ["正在理解问题…", "正在判断意图…", "正在准备上下文…", "正在生成回答…"];
+  const NODE_LABEL = {
+    classify: "判断意图",
+    nl2sql: "生成并执行 SQL",
+    knowledge: "检索知识库",
+    fallback: "兜底应答",
+    agent: "分析判断",
+    tools: "调用工具",
+    finalize: "整理结论"
+  };
+  const TOOL_LABEL = {
+    get_schema: "查表结构",
+    search_knowledge: "查知识库",
+    query_data: "取数"
+  };
+  const BRANCH = {
+    sql: { label: "查数", cls: "sql" },
+    knowledge: { label: "知识", cls: "knowledge" },
+    agent: { label: "分析", cls: "agent" },
+    fallback: { label: "兜底", cls: "fallback" },
+    error: { label: "出错", cls: "error" }
+  };
+  const ICON = {
+    warn: '<svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M12 9v4M12 17h.01"/><path d="M10.3 3.9L2.6 17.1A2 2 0 004.3 20h15.4a2 2 0 001.7-2.9L13.7 3.9a2 2 0 00-3.4 0z"/></svg>',
+    err: '<svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><circle cx="12" cy="12" r="9"/><path d="M15 9l-6 6M9 9l6 6"/></svg>'
+  };
+
+  let busy = false, ctrl = null, lastQuestion = "";
+  let engine = localStorage.getItem("ask_engine") === "graph" ? "graph" : "pipeline";
+
+  function syncEngineSeg() {
+    engineSeg.querySelectorAll("button").forEach((b) => {
+      b.setAttribute("aria-checked", String(b.dataset.engine === engine));
+    });
+  }
+
+  const el = (tag, cls, text) => {
+    const n = document.createElement(tag);
+    if (cls) n.className = cls;
+    if (text !== undefined && text !== null) n.textContent = text;
+    return n;
+  };
+
+  const nearBottom = () => chat.scrollHeight - chat.scrollTop - chat.clientHeight < 160;
+  const toBottom = () => { chat.scrollTop = chat.scrollHeight; };
+  const isNumeric = v => /^-?\d+(\.\d+)?$/.test(String(v).replace(/,/g, ""));
+
+  function setStatus(ok, label, title) {
+    statusEl.classList.toggle("ok", ok === true);
+    statusEl.classList.toggle("bad", ok === false);
+    statusEl.querySelector("span").textContent = label;
+    if (title) statusEl.title = title;
+  }
+
+  async function checkHealth() {
+    try {
+      const r = await fetch("/health", { cache: "no-store" });
+      const d = await r.json();
+      setStatus(!!d.ok, d.ok ? "在线" : "引擎异常", d.ok ? `PostgreSQL · ${d.window}` : (d.error || "引擎不可用"));
+    } catch (e) {
+      setStatus(false, "离线", "无法连接本地服务");
+    }
+  }
+
+  // ---------- 消息 ----------
+  function hideWelcome() {
+    if (welcome && welcome.parentNode) welcome.remove();
+  }
+  function addUser(text) {
+    hideWelcome();
+    const row = el("div", "msg user");
+    const av = el("div", "avatar me", "我");
+    const main = el("div", "msg-main");
+    const bubble = el("div", "bubble");
+    bubble.textContent = text;
+    main.append(bubble);
+    row.append(av, main);
+    chat.append(row);
+    toBottom();
+    clearBtn.disabled = false;
+  }
+
+  function addAssistant() {
+    hideWelcome();
+    const stick = nearBottom();
+    const row = el("div", "msg assistant");
+    const av = el("div", "avatar ai", "AI");
+    const main = el("div", "msg-main");
+    const name = el("div", "msg-name", "数仓助手");
+    const body = el("div", "msg-body");
+    main.append(name, body);
+    row.append(av, main);
+    chat.append(row);
+    if (stick) toBottom();
+    let badge = null;
+    const setBranch = (branch) => {
+      const meta = BRANCH[branch] || BRANCH.fallback;
+      if (!badge) {
+        badge = el("span", "branch-badge " + meta.cls, meta.label);
+        name.append(badge);
+      } else {
+        badge.className = "branch-badge " + meta.cls;
+        badge.textContent = meta.label;
+      }
+    };
+    return { row, body, name, setBranch, started: Date.now(), timer: null, stopLoading: null };
+  }
+
+  function startLoading(msg) {
+    const box = el("div", "loading");
+    const dots = el("div", "dots");
+    dots.append(el("i"), el("i"), el("i"));
+    const text = el("div");
+    const phase = el("div", "phase", PHASES[0]);
+    const elapsed = el("div", "elapsed", "0.0s");
+    text.append(phase, elapsed);
+    box.append(dots, text);
+    msg.body.append(box);
+
+    let i = 0;
+    msg.timer = setInterval(() => {
+      i = Math.min(i + 1, PHASES.length - 1);
+      phase.textContent = PHASES[i];
+      elapsed.textContent = ((Date.now() - msg.started) / 1000).toFixed(1) + "s";
+    }, 950);
+    msg.stopLoading = () => { clearInterval(msg.timer); box.remove(); };
+    return { box, phase, elapsed };
+  }
+
+  function setPhase(ui, text) {
+    if (ui) ui.phase.textContent = text;
+  }
+
+  function renderTable(columns, rows) {
+    const card = el("div", "table-card");
+    const scroll = el("div", "table-scroll");
+    const table = el("table");
+    const thead = el("thead");
+    const trh = el("tr");
+    columns.forEach((c, i) => {
+      const th = el("th", null, c);
+      if (rows.length && isNumeric(rows[0][i])) th.classList.add("num");
+      trh.append(th);
+    });
+    thead.append(trh);
+    const tbody = el("tbody");
+    for (const r of rows) {
+      const tr = el("tr");
+      for (let i = 0; i < columns.length; i++) {
+        const raw = r[i] === undefined || r[i] === null || r[i] === "" ? "—" : String(r[i]);
+        const td = el("td", isNumeric(raw) ? "num" : null, raw);
+        if (raw.length > 48) td.title = raw;
+        tr.append(td);
+      }
+      tbody.append(tr);
+    }
+    table.append(thead, tbody);
+    scroll.append(table);
+    card.append(scroll);
+    return card;
+  }
+
+  function renderMeta(d) {
+    const meta = el("div", "meta");
+    if (d.branch === "sql" && typeof d.row_count === "number") {
+      meta.append(el("span", "pill", `${d.row_count} 行`));
+    }
+    if (Array.isArray(d.steps) && d.steps.length) {
+      meta.append(el("span", "pill", `${d.steps.length} 步分析`));
+    }
+    const secs = d.elapsed ?? d.seconds;
+    if (secs !== undefined && secs !== null) meta.append(el("span", "pill", `${secs}s`));
+    const t = d.tokens || {};
+    const tokens = (t.prompt_tokens || 0) + (t.completion_tokens || 0);
+    if (tokens) meta.append(el("span", "pill", `${tokens.toLocaleString()} tokens`));
+    if ((d.rounds || 1) > 1) meta.append(el("span", "pill warn", `自动修复 ${d.rounds - 1} 次`));
+    if (d.row_count >= 100) meta.append(el("span", "pill", "仅显示前 100 行"));
+    return meta;
+  }
+
+  function renderSql(sql) {
+    const box = el("details", "sql-box");
+    const sum = el("summary");
+    sum.append(el("span", null, "查看 SQL"));
+    sum.insertAdjacentHTML("beforeend", '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M9 6l6 6-6 6"/></svg>');
+    const body = el("div", "sql-body");
+    const head = el("div", "sql-head");
+    head.append(el("span", null, "generated sql"));
+    const copy = el("button", "copy", "复制");
+    copy.type = "button";
+    copy.addEventListener("click", async () => {
+      try {
+        await navigator.clipboard.writeText(sql);
+      } catch (e) {
+        const ta = el("textarea");
+        ta.value = sql; ta.style.position = "fixed"; ta.style.opacity = "0";
+        document.body.append(ta); ta.select(); document.execCommand("copy"); ta.remove();
+      }
+      copy.textContent = "已复制";
+      setTimeout(() => { copy.textContent = "复制"; }, 1400);
+    });
+    head.append(copy);
+    const pre = el("pre");
+    pre.append(el("code", null, sql));
+    body.append(head, pre);
+    box.append(sum, body);
+    box.addEventListener("toggle", () => {
+      if (box.open) box.scrollIntoView({ block: "nearest" });
+    });
+    return box;
+  }
+
+  function renderNotice(kind, title, message) {
+    const box = el("div", "notice " + kind);
+    box.insertAdjacentHTML("afterbegin", ICON[kind === "warn" ? "warn" : "err"]);
+    const text = el("div");
+    text.append(el("h4", null, title), el("p", null, message));
+    box.append(text);
+    return box;
+  }
+
+  function renderProse(text) {
+    const box = el("div", "prose");
+    String(text || "").split(/\n{2,}/).forEach((para) => {
+      if (!para.trim()) return;
+      const p = el("p");
+      // 只处理 **加粗** 与 `代码`，其余一律 textContent（模型输出不可信）
+      const re = /(\*\*[^*]+\*\*|`[^`]+`)/g;
+      let last = 0, m;
+      while ((m = re.exec(para))) {
+        if (m.index > last) p.append(document.createTextNode(para.slice(last, m.index)));
+        const tok = m[0];
+        if (tok.startsWith("**")) p.append(el("strong", null, tok.slice(2, -2)));
+        else p.append(el("code", null, tok.slice(1, -1)));
+        last = m.index + tok.length;
+      }
+      if (last < para.length) p.append(document.createTextNode(para.slice(last)));
+      box.append(p);
+    });
+    return box;
+  }
+
+  const plainText = (s) => String(s || "")
+    .replace(/\*\*/g, "").replace(/[*`]/g, "").replace(/^#+\s*/gm, "")
+    .replace(/\s+/g, " ").trim();
+
+  function renderSqlBranch(msg, d) {
+    const body = msg.body;
+    if (d.refusal) {
+      body.append(renderNotice("warn", "这个我暂时答不了", d.answer || "当前元数据里没有匹配的口径。"));
+      const tip = el("div", "empty");
+      tip.append(el("b", null, "可以换个问法"),
+        el("span", null, "直接问某个 ADS 指标，例如「12-02 的 DAU 是多少」「复购率是多少」。"));
+      body.append(tip);
+    } else {
+      if (d.reason && !d.reason.startsWith("(未返回")) body.append(renderProse(d.reason));
+      const columns = Array.isArray(d.columns) && d.columns.length
+        ? d.columns
+        : (d.rows && d.rows[0] ? d.rows[0].map((_, i) => `列 ${i + 1}`) : []);
+      if (Array.isArray(d.rows) && d.rows.length && columns.length) {
+        body.append(renderTable(columns, d.rows));
+      } else {
+        const empty = el("div", "empty");
+        empty.append(el("b", null, "查询结果为空"));
+        empty.append(el("span", null, "条件是枚举值时，请确认与库中原值完全一致（例如「重要价值客户」不能缩写为「重要价值」）；也可能是该日期区间没有数据。"));
+        body.append(empty);
+      }
+    }
+    body.append(renderMeta(d));
+    if (d.sql) body.append(renderSql(d.sql));
+  }
+
+  function renderKnowledge(msg, d) {
+    msg.body.append(renderProse(d.answer || "（没有返回内容）"));
+    if (Array.isArray(d.citations) && d.citations.length) {
+      const box = el("div", "cites");
+      d.citations.forEach((c) => {
+        const item = el("div", "cite");
+        item.append(el("div", "no", `[${c.id}]`));
+        const b = el("div", "body");
+        b.append(el("span", "src", `${c.source} · ${c.heading}`));
+        b.append(el("div", "txt", plainText(c.snippet)));
+        item.append(b);
+        box.append(item);
+      });
+      msg.body.append(box);
+    }
+    msg.body.append(renderMeta(d));
+  }
+
+  function renderStep(step, i) {
+    const det = el("details", "step");
+    const sum = el("summary");
+    sum.append(el("span", "idx", String(i)));
+    // get_schema/search_knowledge 等调用没有 question，回退显示工具名
+    const TOOL_NAME = { get_schema: "查表结构", search_knowledge: "查知识库", query_data: "取数" };
+    sum.append(el("span", "q", step.question || TOOL_NAME[step.tool] || step.tool || "工具调用"));
+    sum.append(el("span", "st" + (step.error ? " bad" : ""),
+      step.error ? "失败" : `${step.row_count || 0} 行`));
+    sum.insertAdjacentHTML("beforeend",
+      '<svg class="chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M9 6l6 6-6 6"/></svg>');
+    det.append(sum);
+
+    const body = el("div", "step-body");
+    if (step.why) body.append(el("div", "why", step.why));
+    if (step.error) {
+      body.append(renderNotice("warn", "这一步取数失败", String(step.error).slice(0, 300)));
+    } else if (step.rows && step.rows.length) {
+      body.append(renderTable(step.columns, step.rows));
+    } else {
+      body.append(el("div", "empty", "该步骤没有数据"));
+    }
+    if (step.sql) body.append(renderSql(step.sql));
+    det.append(body);
+    det.addEventListener("toggle", () => { if (det.open) det.scrollIntoView({ block: "nearest" }); });
+    return det;
+  }
+
+  function renderAgent(msg, d) {
+    msg.body.append(renderProse(d.answer || "（没有返回结论）"));
+    if (Array.isArray(d.steps)) d.steps.forEach((s, i) => msg.body.append(renderStep(s, i + 1)));
+    msg.body.append(renderMeta(d));
+  }
+
+  function renderFallback(msg, d) {
+    msg.body.append(renderProse(d.answer || "这个问题不在我的能力范围内。"));
+    if (d.intent_reason) {
+      const meta = el("div", "meta");
+      meta.append(el("span", "pill", `路由：${d.intent_reason}`));
+      msg.body.append(meta);
+    }
+  }
+
+  function renderAnswer(msg, d) {
+    msg.stopLoading?.();
+    const branch = d.branch || "fallback";
+    msg.setBranch(branch);
+    if (branch === "error") {
+      renderError(msg, d.error || "未知错误", d.question);
+      return;
+    }
+    if (branch === "knowledge") renderKnowledge(msg, d);
+    else if (branch === "agent") renderAgent(msg, d);
+    else if (branch === "sql") renderSqlBranch(msg, d);
+    else renderFallback(msg, d);
+    toBottom();
+  }
+
+  function renderError(msg, message, question) {
+    msg.stopLoading?.();
+    msg.body.append(renderNotice("err", "查询失败", message || "未知错误"));
+    if (question) {
+      const retry = el("button", "chip", "重试这个问题");
+      retry.type = "button";
+      retry.addEventListener("click", () => { msg.row.remove(); send(question, false); });
+      msg.body.append(retry);
+    }
+    toBottom();
+  }
+
+  function renderCancelled(msg) {
+    msg.stopLoading?.();
+    msg.body.append(renderNotice("warn", "已取消", "这次提问被中止，没有继续生成 SQL。"));
+    toBottom();
+  }
+
+  // ---------- 发送 ----------
+  function setBusy(v) {
+    busy = v;
+    sendBtn.classList.toggle("busy", v);
+    sendBtn.title = v ? "停止" : "发送（Enter）";
+    engineSeg.disabled = v;          // 请求期间不允许切换引擎
+    syncSend();
+  }
+
+  function syncSend() {
+    const has = input.value.trim().length > 0;
+    sendBtn.disabled = busy ? false : !has;
+  }
+
+  async function send(raw, echo = true) {
+    const text = (raw || "").trim();
+    if (!text || busy) return;
+    lastQuestion = text;
+    if (echo) addUser(text);
+    input.value = "";
+    autoGrow();
+    syncSend();
+
+    const msg = addAssistant();
+    const ui = startLoading(msg);
+    setBusy(true);
+    ctrl = new AbortController();
+
+    try {
+      if (engine === "graph") await sendGraph(msg, ui, text);
+      else await sendPipeline(msg, text);
+    } catch (e) {
+      if (e.name === "AbortError") renderCancelled(msg);
+      else renderError(msg, e.message || String(e), text);
+    } finally {
+      setBusy(false);
+      ctrl = null;
+      input.focus();
+    }
+  }
+
+  async function sendPipeline(msg, text) {
+    const res = await fetch("/ask", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ question: text }),
+      signal: ctrl.signal
+    });
+    let data;
+    try { data = await res.json(); }
+    catch (e) { throw new Error(`服务返回了非 JSON 响应（HTTP ${res.status}）`); }
+    if (!res.ok && data.kind !== "refusal") {
+      throw new Error(data.error || `请求失败（HTTP ${res.status}）`);
+    }
+    renderAnswer(msg, data);
+  }
+
+  // graph 引擎：消费 /ask/stream 的 SSE（EventSource 不支持 POST，用 fetch + ReadableStream）
+  async function sendGraph(msg, ui, text) {
+    const res = await fetch("/ask/stream", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ question: text }),
+      signal: ctrl.signal
+    });
+    if (!res.ok || !res.body) {
+      let detail = "";
+      try { detail = (await res.json()).error || ""; } catch (e) { /* 忽略 */ }
+      throw new Error(detail || `请求失败（HTTP ${res.status}）`);
+    }
+
+    const reader = res.body.getReader();
+    const decoder = new TextDecoder("utf-8");
+    let buf = "";
+
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      buf += decoder.decode(value, { stream: true });
+      let idx;
+      while ((idx = buf.indexOf("\n\n")) >= 0) {
+        const block = buf.slice(0, idx);
+        buf = buf.slice(idx + 2);
+        handleSse(msg, ui, block);
+      }
+    }
+    handleSse(msg, ui, buf);           // 收尾（最后一个事件可能不带空行）
+  }
+
+  function handleSse(msg, ui, block) {
+    block = block.trim();
+    if (!block) return;
+    let ev = "message", data = "";
+    for (const line of block.split("\n")) {
+      if (line.startsWith("event:")) ev = line.slice(6).trim();
+      else if (line.startsWith("data:")) data += line.slice(5).trim();
+    }
+    if (!data) return;
+
+    if (ev === "node") {
+      const node = JSON.parse(data).name;
+      setPhase(ui, NODE_LABEL[node] ? `节点：${NODE_LABEL[node]}…` : `节点：${node}…`);
+    } else if (ev === "tool") {
+      const t = JSON.parse(data);
+      const label = TOOL_LABEL[t.name] || t.name;
+      setPhase(ui, `调用工具：${label}…`);
+    } else if (ev === "tool_end") {
+      const t = JSON.parse(data);
+      if (t.error) setPhase(ui, `工具返回失败，换路重试…`);
+      else setPhase(ui, `工具返回 ${t.rows} 行数据`);
+    } else if (ev === "result") {
+      renderAnswer(msg, JSON.parse(data));
+    } else if (ev === "error") {
+      throw new Error(JSON.parse(data).error || "流式请求失败");
+    }
+  }
+
+  function autoGrow() {
+    input.style.height = "auto";
+    input.style.height = Math.min(150, input.scrollHeight) + "px";
+  }
+
+  // ---------- 事件 ----------
+  CHIPS.forEach((q) => {
+    const b = el("button", "chip", q);
+    b.type = "button";
+    b.addEventListener("click", () => send(q));
+    chips.append(b);
+  });
+
+  input.addEventListener("input", () => { autoGrow(); syncSend(); });
+  input.addEventListener("keydown", (e) => {
+    if (e.key === "Enter" && !e.shiftKey && !e.isComposing) {
+      e.preventDefault();
+      form.requestSubmit();
+    }
+  });
+
+  engineSeg.querySelectorAll("button").forEach((b) => {
+    b.addEventListener("click", () => {
+      if (busy || b.dataset.engine === engine) return;
+      engine = b.dataset.engine;
+      localStorage.setItem("ask_engine", engine);
+      syncEngineSeg();
+    });
+  });
+  syncEngineSeg();
+
+  form.addEventListener("submit", (e) => {
+    e.preventDefault();
+    if (busy) { ctrl?.abort(); return; }
+    send(input.value);
+  });
+
+  clearBtn.addEventListener("click", () => {
+    if (busy) return;
+    chat.querySelectorAll(".msg").forEach((n) => n.remove());
+    if (!welcome.parentNode) chat.append(welcome);   // 节点一直在内存里，挂回去即可
+    lastQuestion = "";
+    clearBtn.disabled = true;
+    input.focus();
+  });
+
+  checkHealth();
+  setInterval(checkHealth, 60000);
+  input.focus();
+})();
+</script>
+</body>
+</html>

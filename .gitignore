@@ -1,6 +1,7 @@
 # 运行时数据与产物
 hive-data/
 verify_out/
+logs/
 *.log
 
 # 数据文件（原始 CSV 不入库）

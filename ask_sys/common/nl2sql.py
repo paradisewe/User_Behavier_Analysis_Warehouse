@@ -1,36 +1,25 @@
 #!/usr/bin/env python3
-"""B-lite：问题 → 召回 meta → LLM 生成 SQL → 只读执行 → 打印结果。
+"""NL2SQL 主链（两套编排共用）：召回 → 拼 prompt → 生成 → 解析/安全闸 → 只读执行 → repair。
 
-模型走 OpenAI 兼容协议，配置全在 .env：
-    LLM_BASE_URL=https://api.deepseek.com/v1
-    LLM_API_KEY=...
-    LLM_MODEL=deepseek-chat
-
-用法：
-    python scripts/ask_sql.py "12-02 的 DAU 是多少"
-    python scripts/ask_sql.py --dry-run "复购率怎么算"     # 只打印 prompt，不调模型
-    python scripts/ask_sql.py --batch                      # 跑 10 个固定问题，看整体可用性
+这一层是唯一能执行 SQL 的地方；编排层（pipeline / langgraph）只调用它，不复制实现。
 """
 import json
-import os
 import re
-import subprocess
-import sys
 import time
-from pathlib import Path
 
-import requests
+from .db import psql, q
+from .llm import call_llm
+from .text import score, tokens
 
-sys.path.insert(0, str(Path(__file__).resolve().parent))
-from ask_demo import QUESTIONS, load_env, q, tokens, score  # noqa: E402
 
 class Refusal(Exception):
     """问题无法用一条 SELECT 回答（能力/口径类问题）。"""
 
 
-FORBIDDEN = re.compile(r"\b(insert|update|delete|drop|alter|truncate|create|grant|revoke|copy|vacuum)\b", re.I)
+FORBIDDEN = re.compile(
+    r"\b(insert|update|delete|drop|alter|truncate|create|grant|revoke|copy|vacuum)\b", re.I)
 HOUR_HINT = re.compile(r"\d{1,2}\s*点")
-LAST = {"seconds": 0.0, "prompt_tokens": 0, "completion_tokens": 0, "rounds": 0}  # 上一次 ask 的耗时/用量/轮次
+LAST = {"seconds": 0.0, "prompt_tokens": 0, "completion_tokens": 0, "rounds": 0}
 
 
 def recall(question):
@@ -47,7 +36,8 @@ def recall(question):
             s += 10
         if s:
             mhits.append({"score": s, "id": mid, "name": name, "table": src,
-                          "value": vcol, "formula": formula, "window": window, "caveat": caveat})
+                          "value": vcol, "formula": formula, "window": window,
+                          "caveat": caveat})
     mhits.sort(key=lambda x: -x["score"])
     if mhits:
         floor = max(1, mhits[0]["score"] * 0.4)
@@ -58,14 +48,15 @@ def recall(question):
     for t, c, dtype, comment in columns:
         s = score(qt, f"{c} {comment}")
         if s:
-            chits.append({"score": s, "table": t, "col": c, "type": dtype, "comment": comment})
+            chits.append({"score": s, "table": t, "col": c, "type": dtype,
+                          "comment": comment})
     chits.sort(key=lambda x: -x["score"])
 
     return mhits, chits[:4], tables, columns
 
 
 def value_hints(table, all_columns):
-    """枚举列给实际取值，日期列给范围——防止模型把 '重要价值客户' 缩写成 '重要价值' 导致静默 0 行。"""
+    """枚举列给实际取值，日期列给范围——防止模型缩写枚举值导致静默 0 行。"""
     hints = []
     for tt, c, dtype, _comment in all_columns:
         if tt != table:
@@ -117,28 +108,13 @@ def build_prompt(question, mhits, chits, tables, all_columns):
         "2. 表名、列名必须来自上面的表结构，不要编造。",
         "3. 日期列是 DATE，写成 'YYYY-MM-DD'；不要用 CURRENT_DATE。",
         "4. 问题没指定日期时，用该指标口径里的时间窗口。",
-        "5. 枚举列只能使用【取值】里列出的原值，不要缩写或改写（例如 '重要价值客户' 不能写成 '重要价值'）。",
+        "5. 枚举列只能使用【取值】里列出的原值，不要缩写或改写。",
         "6. 相对时间（最近/上周）以口径窗口末日为基准；查询为空时不要编造数据。",
         "7. 比率/均值用 numeric：ROUND(x::numeric, 4)；PG 没有 round(double precision, int)。",
-        "8. 不能用给定表的一条 SELECT 回答时（能力/解释类问题、缺少所需口径），输出 {\"sql\": null, \"reason\": \"缺少什么口径\"}。",
+        "8. 不能用给定表的一条 SELECT 回答时，输出 {\"sql\": null, \"reason\": \"缺少什么口径\"}。",
         "9. 输出 JSON：{\"sql\": \"<SQL>\", \"reason\": \"<一句话为什么这么查>\"}",
     ]
     return "\n".join(lines)
-
-
-def call_llm(prompt):
-    base = os.environ["LLM_BASE_URL"].rstrip("/")
-    r = requests.post(
-        f"{base}/chat/completions",
-        headers={"Authorization": f"Bearer {os.environ['LLM_API_KEY']}",
-                 "Content-Type": "application/json"},
-        json={"model": os.environ["LLM_MODEL"], "temperature": 0,
-              "messages": [{"role": "user", "content": prompt}]},
-        timeout=60)
-    if r.status_code != 200:
-        raise RuntimeError(f"模型接口 {r.status_code}: {r.text[:300]}")
-    data = r.json()
-    return data["choices"][0]["message"]["content"], data.get("usage", {})
 
 
 def parse_sql(reply):
@@ -172,15 +148,15 @@ def guard(sql):
     return body
 
 
-def run(sql, compact=False):
-    extra = ["-t", "-A"] if compact else ["-P", "pager=off"]
-    r = subprocess.run(
-        ["docker", "exec", "-e", f"PGPASSWORD={os.environ['PG_RO_PASSWORD']}",
-         "pg16", "psql", "-h", "127.0.0.1", "-U", "dw_ro", "-d", "dw"] + extra + ["-c", sql],
-        capture_output=True, text=True, encoding="utf-8", timeout=40)
-    if r.returncode != 0:
-        raise RuntimeError(f"执行失败：{r.stderr.strip()}")
-    return r.stdout.strip()
+def run(sql, compact=False, header=False):
+    """执行 SQL。header=True 保留列名（网页表格用）；默认行为不变。"""
+    if header:
+        extra = ("-A", "-F", "|", "-P", "footer=off")
+    elif compact:
+        extra = ("-t", "-A")
+    else:
+        extra = ("-P", "pager=off")
+    return psql(sql, extra=extra).strip()
 
 
 def answer(question):
@@ -191,8 +167,11 @@ def answer(question):
     return guard(sql), reason, prompt
 
 
-def ask(question, repair=1, compact=False):
-    """生成并执行；占位 SQL 或执行失败时把原因回灌给模型重写一次（B2 的 repair 步骤）。"""
+def ask(question, repair=1, compact=False, header=False, metrics=None):
+    """生成并执行；占位 SQL 或执行失败时把原因回灌模型重写（B2 的 repair）。
+
+    metrics：可选字典，本函数把耗时/轮次/tokens 写回去（并发调用不抢全局 LAST）。
+    """
     t0 = time.perf_counter()
     usage = {"prompt_tokens": 0, "completion_tokens": 0}
     attempts = 0
@@ -214,7 +193,7 @@ def ask(question, repair=1, compact=False):
                 prompt += "\n\n【上一次返回值是占位 SQL】不要用 SELECT NULL 或常数列，必须基于给定表实际计算。"
                 continue
             try:
-                return sql, reason, run(sql, compact=compact)
+                return sql, reason, run(sql, compact=compact, header=header)
             except RuntimeError as e:
                 last_error = e
                 prompt += f"\n\n【上一次 SQL 执行失败】\n{sql}\n错误: {e}\n请修正后重新输出 JSON。"
@@ -223,103 +202,5 @@ def ask(question, repair=1, compact=False):
         LAST["seconds"] = round(time.perf_counter() - t0, 2)
         LAST["rounds"] = attempts
         LAST.update(usage)
-
-
-def load_questions(path):
-    """读评测文件：# 开头是分组名，其余每行一个问题。"""
-    groups = []
-    for line in Path(path).read_text(encoding="utf-8").splitlines():
-        line = line.strip()
-        if not line:
-            continue
-        if line.startswith("#"):
-            groups.append((line.lstrip("# ").strip(), []))
-        else:
-            if not groups:
-                groups.append(("未分组", []))
-            groups[-1][1].append(line)
-    return groups
-
-
-def main():
-    argv = sys.argv[1:]
-    dry = "--dry-run" in argv
-    batch = "--batch" in argv
-    path = None
-    if "--file" in argv:
-        i = argv.index("--file")
-        path = argv[i + 1]
-        del argv[i:i + 2]
-    args = [a for a in argv if not a.startswith("--")]
-
-    load_env()
-
-    if batch or path:
-        for key in ("LLM_BASE_URL", "LLM_API_KEY", "LLM_MODEL"):
-            if not os.environ.get(key):
-                sys.exit(f"缺少 {key}（写进 .env）")
-        groups = load_questions(path) if path else [("固定问题", QUESTIONS)]
-        stats, n = [], 0
-        for title, questions in groups:
-            print(f"\n=== {title} ===")
-            for question in questions:
-                n += 1
-                outcome = "answered"
-                try:
-                    sql, _reason, result = ask(question, compact=True)
-                    print(f"{n}. {question}\n   SQL: {sql}\n   结果: {result or '(空 — 可能该日期无数据或不在口径窗口)'}")
-                except Refusal as e:
-                    outcome = "refused"
-                    print(f"{n}. {question}\n   无此口径: {e}")
-                except Exception as e:
-                    outcome = "failed"
-                    print(f"{n}. {question}\n   FAIL: {e}")
-                stats.append((outcome, LAST["seconds"], LAST["prompt_tokens"],
-                              LAST["completion_tokens"], LAST["rounds"]))
-
-        def pctl(values, p):
-            if not values:
-                return 0.0
-            values = sorted(values)
-            return values[min(len(values) - 1, round((len(values) - 1) * p))]
-
-        secs = [x[1] for x in stats]
-        answered = sum(1 for o, *_ in stats if o == "answered")
-        refused = sum(1 for o, *_ in stats if o == "refused")
-        failed = sum(1 for o, *_ in stats if o == "failed")
-        avg_rounds = sum(x[4] for x in stats) / len(stats) if stats else 0
-        print("\n--- 汇总 ---")
-        print(f"题数 {len(stats)} | 给数 {answered} | 拒答 {refused} | 失败 {failed}")
-        print(f"耗时 P50 {pctl(secs, 0.5):.1f}s / P95 {pctl(secs, 0.95):.1f}s | 平均轮次 {avg_rounds:.2f}")
-        print(f"tokens {sum(x[2] + x[3] for x in stats)}"
-              f"（prompt {sum(x[2] for x in stats)} / completion {sum(x[3] for x in stats)}）")
-        return
-
-    if not args:
-        sys.exit('用法: python scripts/ask_sql.py "问题"')
-    question = args[0]
-
-    if dry:
-        mhits, chits, tables, columns = recall(question)
-        print(build_prompt(question, mhits, chits, tables, columns))
-        return
-
-    for key in ("LLM_BASE_URL", "LLM_API_KEY", "LLM_MODEL"):
-        if not os.environ.get(key):
-            sys.exit(f"缺少 {key}（写进 .env）")
-    try:
-        sql, reason, result = ask(question)
-    except Refusal as e:
-        sys.exit(f"无此口径：{e}")
-    except Exception as e:
-        sys.exit(f"[FAIL] {e}")
-
-    print(f"问题: {question}")
-    print(f"SQL : {sql}")
-    print(f"理由: {reason}")
-    print("\n结果:")
-    print(result or "(空 — 可能该日期无数据或不在口径窗口)")
-
-
-if __name__ == "__main__":
-    main()
+        if metrics is not None:
+            metrics.update(LAST)

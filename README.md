@@ -248,7 +248,7 @@ User_Behavier_Analysis_Warehouse/
 │   ├── DWD/dwd_ddl.hql, dwd_etl.hql
 │   ├── DWS/dws_ddl.hql, dws_etl.hql
 │   └── ADS/ads_ddl.hql, ads_etl.hql
-├── scripts/
+├── scripts/                     # 数据平台脚本（建仓/导出/对账/元数据）
 │   ├── build_warehouse.sh       # 一键建仓（数据校验 → 探活 → 四层 → 烟测）
 │   ├── verify.sh                # 结构 + 内部一致性（17 项）
 │   ├── verify_compare.py        # 跨管道对账（108 项）
@@ -257,9 +257,19 @@ User_Behavier_Analysis_Warehouse/
 │   ├── init_roles_pg.sh         # 只读角色 dw_ro（独立口令 + 最小权限）
 │   ├── build_meta.py            # 元数据构建（DDL 注释 + PG 结构 + 口径配置）
 │   ├── verify_meta.py           # 元数据验收（列级对齐 + 指标自洽）
-│   ├── ask_demo.py              # A3 检索 demo（问题 → meta 上下文）
-│   ├── ask_sql.py               # 问数主链（召回 → LLM → 校验 → 只读执行）
-│   └── ask_api.py               # B3 HTTP 接口（Flask：GET / + POST /ask）
+│   └── ask_api.py               # HTTP 薄入口（Flask 路由 → ask_sys）
+├── ask_sys/                     # 问数应用（两套编排共用同一能力层）
+│   ├── common/                  # env / db / text / llm / nl2sql / knowledge / routing
+│   ├── ver_pipeline/            # 四分支手写编排（知识/查数/分析/兜底）
+│   ├── ver_langgraph/           # LangGraph 编排（state/tools/nodes/graph，默认引擎仍是 pipeline）
+│   ├── verify/branches.py       # 四分支验收（8 个固定问题）
+│   ├── verify/graph.py          # LangGraph 编排验收（快路径对齐 + 多步 + 安全探针）
+│   ├── dev/ask_demo.py          # 召回演示（问题 → meta 上下文）
+│   ├── dev/probe_graph.py       # T0 探针（tool_calls / ToolMessage / StateGraph）
+│   └── cli.py                   # python -m ask_sys.cli [--engine pipeline|graph]
+├── web/
+│   └── index.html               # 问数聊天界面（单文件、无 CDN、含手机适配）
+├── assets/screenshots/          # README 截图（首页 / 结果 / 手机端）
 ├── hive-data/                   # 运行时 ORC 数据（gitignore）
 │   └── ods.db/ dwd.db/ dws.db/ ads.db/
 ├── export/                      # 导出 TSV 中转（gitignore）
@@ -284,10 +294,30 @@ User_Behavier_Analysis_Warehouse/
 
 一期的价值：**Agent 的「眼睛」是元数据**——本项目的表 / 字段 / 指标口径已全部结构化，直接成为知识库语料。
 
+### 四分支路由（对齐原 Dify Chatflow）
+
+问题先过一个分类器，再进四条独立支路；分类模型超时会自动退回关键词规则，不让路由成为单点故障。
+
+```
+问题 → 分类器 ─┬─ 知识/方法  → 本地知识检索（README + 项目介绍 + learning + metric_info）→ 回答 + 引用
+               ├─ 数据查询  → meta 召回 → LLM 生成 SQL → 安全闸 → 只读执行 → 表格 + SQL
+               ├─ 组合分析  → 拆 1~2 个取数子问题（并发执行）→ 综合解释
+               └─ 其他/闲聊 → 固定兜底话术
+```
+
+| 分支 | 判定信号 | 产出 | 相对原 Dify 版 |
+|---|---|---|---|
+| 知识 `knowledge` | 口径/定义/为什么/架构/对账 | 回答 + 引用片段 | 2-gram 词法 + `metric_info` 结构化口径，不依赖向量库 |
+| 查数 `sql` | 要具体数值/榜单/趋势 | 表格 + 可复现 SQL + 耗时/tokens | 同原版 NL2SQL 支路 |
+| 分析 `agent` | 多时间点比较、归因、解释 | 结论 + 分步取数（每步可展开看 SQL） | 计划-执行-综合，替代 FunctionCalling 工具循环；子问题并发、上限 2 步 |
+| 兜底 `fallback` | 闲聊/越界 | 固定话术 + 能力清单 | 同原版 |
+
+验收：`python -m ask_sys.verify.branches`——8 个固定问题覆盖四分支，要求路由标签正确且产出非空。
+
 ### 问数评测（2026-11-18，40 题）
 
-链路：`问题 → meta 召回（指标/字段/实际取值）→ LLM 生成 SQL → 安全闸 → 只读账号执行`。
-运行：`python scripts/ask_sql.py --file eval/questions.txt`（题集在 `eval/questions.txt`，
+链路（查数支路）：`问题 → meta 召回（指标/字段/实际取值）→ LLM 生成 SQL → 安全闸 → 只读账号执行`。
+运行：`python -m ask_sys.cli --sql --file eval/questions.txt`（题集在 `eval/questions.txt`，
 每题期望答案与判定口径在 `eval/expected.md`）。
 
 | 分类 | 题数 | 给出数值 | 正确拒答 |
@@ -322,6 +352,43 @@ User_Behavier_Analysis_Warehouse/
 `round(double precision, int)`）可由 1 次 repair 自动修复；口径类错误不会报错，
 只能靠评测集 + 拒答分支暴露。
 
+### 网页界面（chat 风格）
+
+```bash
+/d/pythonS/anaconda/python.exe scripts/ask_api.py
+# 浏览器打开 http://127.0.0.1:5001
+```
+
+界面在 `web/index.html`（单文件、无 CDN）：气泡对话、四条分支徽标（知识/查数/分析/兜底）、等待期分阶段提示、
+结果表格（粘性表头、数字右对齐、超长值省略）、知识回答带引用、分析回答分步可展开、可折叠 SQL + 一键复制、
+拒答/错误分色、示例问题、Enter 发送与手机适配；状态灯走 `GET /health`。接口仍可单独调用：
+`POST /ask` 返回 `branch / answer / sql / columns / rows / citations / steps / 耗时 / tokens`。
+
+<p align="center">
+  <img src="assets/screenshots/chat-home.png" alt="问数首页：示例问题与输入框" width="820">
+  <br><sub>首页：8 个示例问题覆盖四分支</sub>
+</p>
+
+<p align="center">
+  <img src="assets/screenshots/chat-answer.png" alt="查数分支：结果表格与可复现 SQL" width="820">
+  <br><sub>查数分支（查数）：口径说明 → 结果表格 → 元信息 / 可展开 SQL</sub>
+</p>
+
+<p align="center">
+  <img src="assets/screenshots/chat-knowledge.png" alt="知识分支：口径定义与引用来源" width="820">
+  <br><sub>知识分支（知识）：直接回答口径 + 文档/元数据引用</sub>
+</p>
+
+<p align="center">
+  <img src="assets/screenshots/chat-agent.png" alt="分析分支：结论 + 分步取数" width="820">
+  <br><sub>分析分支（分析）：结论 + 分步取数，每步可展开看 SQL</sub>
+</p>
+
+<p align="center">
+  <img src="assets/screenshots/chat-mobile.png" alt="手机端（390×844）" width="320">
+  <br><sub>手机端（390×844）：布局与表格自适应</sub>
+</p>
+
 ### 安全闸实测（2026-11-18）
 
 防御不是一道闸，是五层独立机制：**召回 → prompt 契约 → SQL 语法闸 → 只读角色 → 角色级超时**。
@@ -338,6 +405,58 @@ User_Behavier_Analysis_Warehouse/
 
 结论：写操作有三层独立覆盖（语法闸、模型契约、数据库权限），不依赖单点；
 超时挂在角色上——应用层被绕过时，数据库自己也会刹车。
+
+### 两种编排对照：pipeline 与 LangGraph（2026-11-19）
+
+同一套能力层（`ask_sys/common`）上有两套编排，行为同构、可切换：
+
+- `ver_pipeline`：四分支手写状态机。agent 分支是「计划 → 并发取数 → 综合」，
+  步骤固定（1~2 步）、延迟可控，是**默认引擎**；
+- `ver_langgraph`：LangGraph `StateGraph`。快路径（sql/knowledge/fallback）是单节点直调
+  `common`，与 pipeline 同一条链路；agent 分支是**真正的工具循环**——模型自主决定调哪个工具
+  （`get_schema` / `search_knowledge` / `query_data`）、看观察、再决定，预算 4 轮 / 8k tokens / 90s。
+
+```
+START → classify ─┬→ nl2sql   ──→ finalize → END      （快路径与 pipeline 同链路）
+                  ├→ knowledge ─→ finalize
+                  ├→ fallback  ─→ finalize
+                  └→ agent ⇄ tools → finalize          （唯一一个环）
+```
+
+| 指标 | pipeline | graph（快路径） | graph（agent） |
+|---|---|---|---|
+| 8 题分支正确 | 8/8 | 8/8（与 pipeline 逐题同分支、sql 同行数） | — |
+| 多步 3 题数字命中 | — | — | 3/3 |
+| 循环上限 | 固定 2 步 | — | 自主 ≤4 轮（实测 2~3 轮收口） |
+| 安全 4 题 | 4/4 | 4/4 | 4/4 |
+| P50 / P95 延迟 | 9.9s / 21.4s（40 题） | 同 pipeline（同链路） | 30~98s（预算内波动） |
+| tokens/题 | ~1,670 | 同 pipeline | 5k~10k（工具循环开销） |
+| 工具调用次数 | 固定 2 步 | — | 自主 2~5 次 |
+
+切换方式：
+
+```bash
+# CLI
+/d/pythonS/anaconda/python.exe -m ask_sys.cli --engine graph "12-02 的 DAU 是多少"
+
+# API：POST /ask 增加 engine 字段（缺省 pipeline，非法值 400）
+curl -X POST http://127.0.0.1:5001/ask -H "Content-Type: application/json" \
+     -d '{"question":"为什么 12-02 的 DAU 比前一天高","engine":"graph"}'
+
+# SSE（固定 graph）：/ask/stream 依次推 node / tool / tool_end / result 事件
+curl -N -X POST http://127.0.0.1:5001/ask/stream -H "Content-Type: application/json" \
+     -d '{"question":"对比 12-01 和 12-02 的购买人数并解释"}'
+```
+
+网页顶栏可切 `pipeline | graph`（localStorage 记忆，请求期间锁定）；
+graph 模式下加载提示是真实节点进度（判断意图 → 调用工具 → 工具返回 N 行 → 整理结论）。
+
+验收与对照复现：
+
+```bash
+/d/pythonS/anaconda/python.exe -m ask_sys.verify.graph    # 快路径对齐 + 多步 + 安全探针
+/d/pythonS/anaconda/python.exe -m ask_sys.verify.branches # pipeline 8/8 不回归
+```
 
 ---
 
